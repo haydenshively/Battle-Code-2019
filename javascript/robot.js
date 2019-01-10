@@ -80,27 +80,19 @@ class MyRobot extends BCAbstractRobot {
     return this.signal(value, sq_radius);
     return this.castleTalk(value);
     */
-    if (step == 1) {
-
-      var maze = [[0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]];//,
-                // [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                // [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-                // [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-                // [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-                // [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]];
-
-    let path = find_path([0, 0], [0, 1], maze, this);
-    this.log(String(path));
-    let next = path[0];
-    let dx = next[0] - this.me.x;
-    let dy = next[1] - this.me.y;
-    this.log(String(dx));
-    this.log(String(dy))
-    return this.move(dx, dy);}
+    if (step > 0) {
+      let path = find_path([this.me.x, this.me.y], [15, 15], this.map, this);
+      if (path) {
+        this.log([this.me.x, this.me.y])
+        this.log(path);
+        let next = path[1];
+        let dx = next[0] - this.me.x;
+        let dy = next[1] - this.me.y;
+        this.log(dx);
+        this.log(dy);
+        return this.move(dx, dy);
+      }
+    }
   }
 
   crusader_turn() {
