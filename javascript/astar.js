@@ -36,7 +36,20 @@ function node_comparator(a, b) {
   return a.f < b.f;
 }
 
-export function find_path(start, end, map, r) {
+function makeArray(w, h, val) {
+    var arr = [];
+    for(var i = 0; i < h; i++) {
+        arr[i] = [];
+        for(var j = 0; j < w; j++) {
+            arr[i][j] = val;
+        }
+    }
+    return arr;
+}
+
+export function find_path(start, end, map) {
+  var my_map = makeArray(map[0].length, map.length, true);
+
   let node_start = new Node(null, start);
   let node_end = new Node(null, end);
 
@@ -49,7 +62,8 @@ export function find_path(start, end, map, r) {
 
     let tip = branches.pop();
     // trunk.push(tip);
-    map[tip.position[1]][tip.position[0]] = false;
+    // map[tip.position[1]][tip.position[0]] = false;
+    my_map[tip.position[1]][tip.position[0]] = false;
 
     // Yay! Reached destination
     if (tip.equals(end)) {
@@ -74,6 +88,7 @@ export function find_path(start, end, map, r) {
         continue
       }
       if (!map[child_position[1]][child_position[0]]) {continue}
+      if (!my_map[child_position[1]][child_position[0]]) {continue}
 
       var child = new Node(tip, child_position);
       child.g = tip.g + 1;
