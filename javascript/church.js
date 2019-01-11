@@ -1,20 +1,21 @@
 import {SPECS} from 'battlecode';
 import {find_path} from './astar.js';
+
 export class Church {
   constructor() {
-
+    this.step = 0;
   }
 
   /*
   Actions:
-  return this.buildUnit(unit, dx, dy);
-  return this.give(dx, dy, karbonite, fuel);
+  return puppet.buildUnit(unit, dx, dy);
+  return puppet.give(dx, dy, karbonite, fuel);
 
   Communications:
-  return this.signal(value, sq_radius);
-  return this.castleTalk(value);
+  return puppet.signal(value, sq_radius);
+  return puppet.castleTalk(value);
   */
-  turn(manager) {
+  get_action_for(puppet) {
 
   }
 }

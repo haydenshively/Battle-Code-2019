@@ -10,28 +10,34 @@ class MyRobot extends BCAbstractRobot {
 
   constructor() {
     super();
-
-    this.step = -1;
+    this._initialized = false;
   }
 
   turn() {
-    if (this.step == -1) {
+    if (!this._initialized) {
       switch (this.me.unit) {
-        case SPECS.CASTLE: this.playbook = new Castle(); break;
-        case SPECS.CHURCH: this.playbook = new Church(); break;
-        case SPECS.PILGRIM: this.playbook = new Pilgrim(); break;
-        case SPECS.CRUSADER: this.playbook = new Crusader(); break;
-        case SPECS.PROPHET: this.playbook = new Prophet(); break;
-        case SPECS.PREACHER: this.playbook = new Preacher(); break;
-        default:
-        this.playbook = null;
-        this.log("Something went very wrong. Didn't conform to any SPEC.");
+        case SPECS.CASTLE: this.source = new Castle(); break;
+        case SPECS.CHURCH: this.source = new Church(); break;
+        case SPECS.PILGRIM: this.source = new Pilgrim(); break;
+        case SPECS.CRUSADER: this.source = new Crusader(); break;
+        case SPECS.PROPHET: this.source = new Prophet(); break;
+        case SPECS.PREACHER: this.source = new Preacher(); break;
+        default: this.source = new RandomMovement(); this.log("Defaulting to RandomMovement");
       }
+
+      this._initialized = true;
     }
 
+    return this.source.get_action_for(this);
+  }
+}
 
-    this.step++;
-    return this.playbook.turn(this);
+class RandomMovement {
+  constructor() {this.directions = [[0, 1], [0, -1], [1, 0], [-1, 0]];}
+  get_action_for(puppet) {
+    let rand = Math.random()*this.directions.length;
+    let direction = this.directions[Math.floor(rand)];
+    return puppet.move(direction[0], direction[1]);
   }
 }
 

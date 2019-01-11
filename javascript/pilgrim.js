@@ -1,33 +1,34 @@
 import {SPECS} from 'battlecode';
 import {find_path} from './astar.js';
+
 export class Pilgrim {
   constructor() {
-
+    this.step = 0;
   }
 
   /*
   Actions:
-  return manager.buildUnit(SPECS.CHURCH, dx, dy);
-  return manager.give(dx, dy, karbonite, fuel);
-  return manager.mine();
-  return manager.move(dx, dy);
+  return puppet.buildUnit(SPECS.CHURCH, dx, dy);
+  return puppet.give(dx, dy, karbonite, fuel);
+  return puppet.mine();
+  return puppet.move(dx, dy);
 
   Communications:
-  return manager.signal(value, sq_radius);
-  return manager.castleTalk(value);
+  return puppet.signal(value, sq_radius);
+  return puppet.castleTalk(value);
   */
-  turn(manager) {
-    if (manager.step > 1) {
-      let path = find_path([manager.me.x, manager.me.y], [15, 15], manager.map, manager);
+  get_action_for(puppet) {
+    if (this.step > 1) {
+      let path = find_path([puppet.me.x, puppet.me.y], [15, 15], puppet.map, puppet);
       if (path) {
-        manager.log([manager.me.x, manager.me.y])
-        manager.log(path);
+        puppet.log([puppet.me.x, puppet.me.y])
+        puppet.log(path);
         let next = path[1];
-        let dx = next[0] - manager.me.x;
-        let dy = next[1] - manager.me.y;
-        manager.log(dx);
-        manager.log(dy);
-        return manager.move(dx, dy);
+        let dx = next[0] - puppet.me.x;
+        let dy = next[1] - puppet.me.y;
+        puppet.log(dx);
+        puppet.log(dy);
+        return puppet.move(dx, dy);
       }
     }
   }

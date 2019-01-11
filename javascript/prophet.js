@@ -1,21 +1,22 @@
 import {SPECS} from 'battlecode';
 import {find_path} from './astar.js';
+
 export class Prophet {
   constructor() {
-
+    this.step = 0;
   }
 
   /*
   Actions:
-  return this.attack(dx, dy);
-  return this.give(dx, dy, karbonite, fuel);
-  return this.move(dx, dy);
+  return puppet.attack(dx, dy);
+  return puppet.give(dx, dy, karbonite, fuel);
+  return puppet.move(dx, dy);
 
   Communications:
-  return this.signal(value, sq_radius);
-  return this.castleTalk(value);
+  return puppet.signal(value, sq_radius);
+  return puppet.castleTalk(value);
   */
-  turn(manager) {
+  get_action_for(puppet) {
 
   }
 }

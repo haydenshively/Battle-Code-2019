@@ -1,5 +1,6 @@
 import {SPECS} from 'battlecode';
 import {find_path} from './astar.js';
+
 export class Crusader {
   constructor() {
     this.step = 0;
@@ -8,39 +9,39 @@ export class Crusader {
 
   /*
   Actions:
-  return manager.attack(dx, dy);
-  return manager.give(dx, dy, karbonite, fuel);
-  return manager.move(dx, dy);
+  return puppet.attack(dx, dy);
+  return puppet.give(dx, dy, karbonite, fuel);
+  return puppet.move(dx, dy);
 
   Communications:
-  return manager.signal(value, sq_radius);
-  return manager.castleTalk(value);
+  return puppet.signal(value, sq_radius);
+  return puppet.castleTalk(value);
   */
-  turn(manager) {
+  get_action_for(puppet) {
     if (this.step == 0) {
-      this.path = find_path([manager.me.x, manager.me.y], [15, 15], manager.map);
+      this.path = find_path([puppet.me.x, puppet.me.y], [15, 15], puppet.map);
       this.step++;
     }else {
-      if ((manager.me.x == this.path[this.step][0]) && (manager.me.y == this.path[this.step][1]) && (this.step + 1 < this.path.length)) {
+      if ((puppet.me.x == this.path[this.step][0]) && (puppet.me.y == this.path[this.step][1]) && (this.step + 1 < this.path.length)) {
         this.step++;
       }
-      manager.log(this.path[this.step]);
-      let dx = this.path[this.step][0] - manager.me.x;
-      let dy = this.path[this.step][1] - manager.me.y;
-      return manager.move(dx, dy);
+      puppet.log(this.path[this.step]);
+      let dx = this.path[this.step][0] - puppet.me.x;
+      let dy = this.path[this.step][1] - puppet.me.y;
+      return puppet.move(dx, dy);
     }
-    // if (manager.step > 1) {
+    // if (puppet.step > 1) {
     //   var path =
     //
     //   if (path.length > 1) {
-    //     manager.log([manager.me.x, manager.me.y])
-    //     manager.log(path);
+    //     puppet.log([puppet.me.x, puppet.me.y])
+    //     puppet.log(path);
     //     let next = path[1];
-    //     let dx = next[0] - manager.me.x;
-    //     let dy = next[1] - manager.me.y;
-    //     manager.log(dx);
-    //     manager.log(dy);
-    //     return manager.move(dx, dy);
+    //     let dx = next[0] - puppet.me.x;
+    //     let dy = next[1] - puppet.me.y;
+    //     puppet.log(dx);
+    //     puppet.log(dy);
+    //     return puppet.move(dx, dy);
     //   }
     // }
   }

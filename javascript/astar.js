@@ -91,7 +91,7 @@ export function find_path(start, end, map) {
       if (!my_map[child_position[1]][child_position[0]]) {continue}
 
       var child = new Node(tip, child_position);
-      child.g = tip.g + 1;
+      child.g = tip.g + Math.abs(unit_ring[direction][0]) + Math.abs(unit_ring[direction][1]);
       child.h = Math.max(Math.abs(child_position[0] - end[0]), Math.abs(child_position[1] - end[1]));
       child.f = child.g + child.h;
 
