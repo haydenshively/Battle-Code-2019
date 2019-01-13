@@ -1,7 +1,7 @@
 import {SPECS} from 'battlecode';
 import {find_path} from './astar.js';
 
-export class Preacher {
+export class PreacherSource {
   constructor() {
     this.step = 0;
   }

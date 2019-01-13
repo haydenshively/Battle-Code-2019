@@ -1,7 +1,7 @@
 import {SPECS} from 'battlecode';
 import {find_path} from './astar.js';
 
-export class Church {
+export class ChurchSource {
   constructor() {
     this.step = 0;
   }

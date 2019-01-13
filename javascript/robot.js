@@ -1,31 +1,31 @@
 import {BCAbstractRobot, SPECS} from 'battlecode';
-import {Castle} from './castle.js';
-import {Church} from './church.js';
-import {Crusader} from './crusader.js';
-import {Pilgrim} from './pilgrim.js';
-import {Preacher} from './preacher.js';
-import {Prophet} from './prophet.js';
+import {CastleSource} from './castle.js';
+import {ChurchSource} from './church.js';
+import {CrusaderSource} from './crusader.js';
+import {PilgrimSource} from './pilgrim.js';
+import {PreacherSource} from './preacher.js';
+import {ProphetSource} from './prophet.js';
 
 class MyRobot extends BCAbstractRobot {
 
   constructor() {
     super();
-    this._initialized = false;
+    this.initialized = false;
   }
 
   turn() {
-    if (!this._initialized) {
+    if (!this.initialized) {
       switch (this.me.unit) {
-        case SPECS.CASTLE: this.source = new Castle(); break;
-        case SPECS.CHURCH: this.source = new Church(); break;
-        case SPECS.PILGRIM: this.source = new Pilgrim(); break;
-        case SPECS.CRUSADER: this.source = new Crusader(); break;
-        case SPECS.PROPHET: this.source = new Prophet(); break;
-        case SPECS.PREACHER: this.source = new Preacher(); break;
+        case SPECS.CASTLE: this.source = new CastleSource(); break;
+        case SPECS.CHURCH: this.source = new ChurchSource(); break;
+        case SPECS.PILGRIM: this.source = new PilgrimSource(); break;
+        case SPECS.CRUSADER: this.source = new CrusaderSource(); break;
+        case SPECS.PROPHET: this.source = new ProphetSource(); break;
+        case SPECS.PREACHER: this.source = new PreacherSource(); break;
         default: this.source = new RandomMovement(); this.log("Defaulting to RandomMovement");
       }
 
-      this._initialized = true;
+      this.initialized = true;
     }
 
     return this.source.get_action_for(this);
