@@ -48,14 +48,11 @@ export class CastleSource extends CommonSource {
 
       // DEBUG
       puppet.log("CASTLE " + puppet.me.id + " TURN 1");
-      puppet.log("Detected " + this.castle_count + " castles");
       puppet.log("Place in queue: " + this.place_in_turn_queue);
-      puppet.log("X: " + puppet.me.x);
-      puppet.log("Y: " + puppet.me.y);
-      puppet.log(direction);
+      puppet.log("X: " + puppet.me.x + ", Y: " + puppet.me.y);
+      puppet.log("Placing on: " + direction);
       puppet.log("--------------------------------------------------");
 
-      // if ((!this.place_in_turn_queue%2) && (this.castle_count == 3)) {
       if (this.place_in_turn_queue == 2) {
         return puppet.buildUnit(SPECS.CRUSADER, direction[0], direction[1]);
       }else {
@@ -156,22 +153,6 @@ export class CastleSource extends CommonSource {
       this.process_visible_robots_using(puppet, handle_enemy, handle_friendly_for_2_part_A, completion);
       this.process_visible_robots_using(puppet, handle_enemy, handle_friendly_for_2_part_B, completion);
     }
-
-
-
-
-    // for (var i = messages_from_units.length - 1; i >= 0; i--) {
-    //   let message = messages_from_units[i];
-    //   let castle_talk = this.get_bool_coord_from(message.castle_talk);
-    //   // puppet.log("message " + i + " from " + message.id + " had " + castle_talk);
-    //   for (var id in this.our_castles) {
-    //     // puppet.log("castle " + id + " had " + this.our_castles[id].id_bool);
-    //     if ((id != puppet.me.id) && (this.our_castles[id].id_bool == castle_talk[0])) {
-    //       // puppet.log("made it!");
-    //       this.our_castles[id].y = castle_talk[1];
-    //     }
-    //   }
-    // }
   }
 
 
