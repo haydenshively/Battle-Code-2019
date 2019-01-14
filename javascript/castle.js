@@ -1,28 +1,30 @@
 import {SPECS} from 'battlecode';
+import {CommonSource} from './common.js';
 
 const unit_ring = [[0, -1], [0, 1], [-1, 0], [1, 0], [-1, -1], [-1, 1], [1, -1], [1, 1]];
 const unit_ring_length = 8;
 
 class Castle {
-  constructor(id_bool = null, x = null, y = null) {
-    this.id_bool = id_bool;
+  constructor(place_in_turn_queue = null, x = null, y = null, id_bool = null) {
+    this.place_in_turn_queue = place_in_turn_queue;
     this.x = x;
     this.y = y;
+    this.id_bool = id_bool;
   }
 }
 
-export class CastleSource {
+export class CastleSource extends CommonSource {
   constructor() {
+    super();
     // Variables to set once (as soon as we receive a puppet instance)
-    this.map_rows = null;
-    this.map_cols = null;
-    this.symmetry_style = null;
     this.place_in_turn_queue = null;
     this.buildable_tiles = [];
     // Are all the above set?
     this.initialized = false;
 
     // Variables to set once (after more information becomes available)
+    this.castle_count = null;
+    this.other_units = {};
     this.our_castles = {};
     this.their_castles = {};
   }
@@ -43,95 +45,176 @@ export class CastleSource {
     if (puppet.me.turn == 1) {
       let i = Math.floor(Math.random() * this.buildable_tiles.length);
       let direction = this.buildable_tiles[i];
+
+      // DEBUG
+      puppet.log("CASTLE " + puppet.me.id + " TURN 1");
+      puppet.log("Detected " + this.castle_count + " castles");
+      puppet.log("Place in queue: " + this.place_in_turn_queue);
+      puppet.log("X: " + puppet.me.x);
+      puppet.log("Y: " + puppet.me.y);
       puppet.log(direction);
-      return puppet.buildUnit(SPECS.PILGRIM, direction[0], direction[1]);
+      puppet.log("--------------------------------------------------");
+
+      // if ((!this.place_in_turn_queue%2) && (this.castle_count == 3)) {
+      if (this.place_in_turn_queue == 2) {
+        return puppet.buildUnit(SPECS.CRUSADER, direction[0], direction[1]);
+      }else {
+        return puppet.buildUnit(SPECS.PILGRIM, direction[0], direction[1]);
+      }
+    }
+    else if (puppet.me.turn == 2) {
+      this.second_init(puppet);
+
+      // DEBUG
+      puppet.log("CASTLE " + puppet.me.id + " TURN 2");
+      puppet.log("Detected " + this.castle_count + " castles");
+      for (var id in this.our_castles) {
+        let castle = this.our_castles[id];
+        puppet.log("--ID: " + id);
+        puppet.log("--X: " + castle.x);
+        puppet.log("--Y: " + castle.y);
+        puppet.log("--")
+      }
+      puppet.log("--------------------------------------------------");
     }
   }
+
+  second_init(puppet) {
+
+    function handle_enemy(robot, inst) {}
+    function handle_friendly_for_2_part_A(robot, inst) {
+      if ((robot.turn == 2) && (inst.castle_count == 3)) {
+        let castle_talk = inst.get_bool_coord_from(robot.castle_talk);
+        let is_pilgrim_1_larger_than_castle_3 = castle_talk[1];
+        let possible_castle_ids = Object.keys(inst.other_units);
+        let castle3ID = (is_pilgrim_1_larger_than_castle_3 ? Math.min(...possible_castle_ids) : Math.max(...possible_castle_ids));
+        inst.our_castles[castle3ID] = new Castle(3, null, null, true);
+      }
+    }
+    function handle_friendly_for_2_part_B(robot, inst) {
+      if (robot.turn == 1) {
+        let castle_talk = inst.get_bool_coord_from(robot.castle_talk);
+        if (inst.our_castles[robot.id]) {
+          inst.our_castles[robot.id].id_bool = castle_talk[0];
+          inst.our_castles[robot.id].x = castle_talk[1];
+        }else if (inst.other_units[robot.id] && (castle_talk[1] != puppet.me.y)) {
+          for (var id in inst.our_castles) {
+            if (inst.our_castles[id].place_in_turn_queue == 1) {inst.our_castles[id].y = castle_talk[1];}
+          }
+        }else if (castle_talk[1] != puppet.me.y) {
+          for (var id in inst.our_castles) {
+            if (inst.our_castles[id].place_in_turn_queue == 3) {inst.our_castles[id].y = castle_talk[1];}
+          }
+        }
+      }
+    }
+    if (this.place_in_turn_queue%2) {this.other_units = {};}
+    function handle_friendly_for_others(robot, inst) {
+      if (robot.turn == 1) {
+        let castle_talk = inst.get_bool_coord_from(robot.castle_talk);
+        if (inst.our_castles[robot.id]) {
+          inst.our_castles[robot.id].id_bool = castle_talk[0];
+          inst.our_castles[robot.id].x = castle_talk[1];
+        }else {
+          inst.other_units[robot.id] = castle_talk;
+        }
+      }
+    }
+    function completion(visible_robots, inst) {
+      if (inst.place_in_turn_queue == 1) {
+        var pilgrim1ID;
+        var castle3ID;
+        for (var i = visible_robots.length - 1; i >= 0; i--) {
+          let robot = visible_robots[i];
+          if (robot.team == !puppet.me.team) {continue}
+          else if (robot.id == puppet.me.id) {continue}
+          else {
+            if (inst.get_bool_coord_from(robot.castle_talk)[0] && inst.our_castles[robot.id]) {castle3ID = robot.id;}
+            else if (CommonSource.r_sq_between(puppet.me.x, puppet.me.y, robot.x, robot.y) <= 2) {pilgrim1ID = robot.id;}//TODO
+          }
+        }
+        puppet.castleTalk(inst.small_packet_for(true, (pilgrim1ID > castle3ID)));
+      }
+
+      if (inst.place_in_turn_queue%2) {
+        for (var unit_id in inst.other_units) {
+          let castle_talk = inst.other_units[unit_id];
+          if (puppet.me.y == castle_talk[1]) {continue}
+          for (var castle_id in inst.our_castles) {
+            if ((castle_id != puppet.me.id) && (inst.our_castles[castle_id].id_bool == inst.other_units[unit_id][0])) {
+
+              inst.our_castles[castle_id].y = inst.other_units[unit_id][1];
+            }
+          }
+        }
+      }
+    }
+
+    if (this.place_in_turn_queue%2) {
+      this.process_visible_robots_using(puppet, handle_enemy, handle_friendly_for_others, completion);
+    }else {
+      this.process_visible_robots_using(puppet, handle_enemy, handle_friendly_for_2_part_A, completion);
+      this.process_visible_robots_using(puppet, handle_enemy, handle_friendly_for_2_part_B, completion);
+    }
+
+
+
+
+    // for (var i = messages_from_units.length - 1; i >= 0; i--) {
+    //   let message = messages_from_units[i];
+    //   let castle_talk = this.get_bool_coord_from(message.castle_talk);
+    //   // puppet.log("message " + i + " from " + message.id + " had " + castle_talk);
+    //   for (var id in this.our_castles) {
+    //     // puppet.log("castle " + id + " had " + this.our_castles[id].id_bool);
+    //     if ((id != puppet.me.id) && (this.our_castles[id].id_bool == castle_talk[0])) {
+    //       // puppet.log("made it!");
+    //       this.our_castles[id].y = castle_talk[1];
+    //     }
+    //   }
+    // }
+  }
+
 
   initialize_with(puppet) {
-    this.map_rows = puppet.map.length;
-    this.map_cols = puppet.map[0].length;
+    super.initialize_with(puppet);
     this.find_buildable_tiles_around(puppet.me.x, puppet.me.y, puppet.map);
-    this.find_symmetry_style_of(puppet.map, puppet.fuel_map, puppet.karbonite_map);
-
-    puppet.log("Symmetry Style:")
-    puppet.log(this.symmetry_style);
-
     // start at 0, will basically become castle # (1, 2, or 3)
-    this.place_in_turn_queue = 0;
-    // because this is a castle, includes everything in 100 r^2 and own team
-    let visible_robots = puppet.getVisibleRobots();
-    // iterate through all results
-    for (var i = visible_robots.length - 1; i >= 0; i--) {
-      let robot = visible_robots[i];
-      // If opponents show up, it's because they're visible, in which case
-      // their team # will be accessible. If it's the opposite of our team #,
-      // treat them differently. In any other case (team # matches ours or
-      // is null) treat them as family.
-      if (robot.team == !puppet.me.team) {
-        continue// TODO
+    this.place_in_turn_queue = 1;
+
+    function handle_enemy(robot, inst) {}
+    function handle_friendly(robot, inst) {
+      if (robot.turn == 1) {
+        inst.place_in_turn_queue++;
+        let castle_talk = inst.get_bool_coord_from(robot.castle_talk);
+        inst.our_castles[robot.id] = new Castle();
+        inst.our_castles[robot.id].id_bool = castle_talk[0];
+        inst.our_castles[robot.id].x = castle_talk[1];
+      }else {
+        inst.other_units[robot.id] = new Castle();
       }
-      // if robot is self
-      else if (robot.id == puppet.me.id) {
-        this.place_in_turn_queue++;
-        continue// TODO
-      }
-      // if robot has had 1 turn
-      else if (robot.turn == 1) {
-          this.place_in_turn_queue++;
-          let castle_talk = this.get_bool_coord_from(robot.castle_talk);
-          this.our_castles[robot.id] = new Castle(castle_talk[0], castle_talk[1], null);
-      }
-      // if robot has had 0 turns
-      else {
-        continue// TODO
+    }
+    function completion(visible_robots, inst) {
+      switch (inst.place_in_turn_queue) {
+        case 1:
+          inst.our_castles = inst.other_units;
+          inst.castle_count = Object.keys(inst.our_castles).length + 1;
+          break
+        case 2:
+          inst.our_castles[Object.keys(inst.our_castles)[0]].place_in_turn_queue = 1;
+          inst.castle_count = Object.keys(inst.our_castles).length + Object.keys(inst.other_units).length;
+          break
+        case 3:
+          inst.castle_count = Object.keys(inst.our_castles).length + 1;
       }
     }
 
-    let id_bool;
-    switch (this.place_in_turn_queue) {
-      case 1:
-        id_bool = false;
-        this.our_castles[puppet.me.id] = new Castle(id_bool, puppet.me.x, puppet.me.y);
-        puppet.log(this.create_packet_for(id_bool, puppet.me.x));
-        puppet.castleTalk(this.create_packet_for(id_bool, puppet.me.x));
-        break;
-      case 2:
-        id_bool = false;
-        this.our_castles[puppet.me.id] = new Castle(id_bool, puppet.me.x, puppet.me.y);
-        puppet.log(this.create_packet_for(id_bool, puppet.me.x));
-        puppet.castleTalk(this.create_packet_for(id_bool, puppet.me.x));
-        break;
-      case 3:
-        id_bool = true;
-        this.our_castles[puppet.me.id] = new Castle(id_bool, puppet.me.x, puppet.me.y);
-        puppet.log(this.create_packet_for(id_bool, puppet.me.x));
-        puppet.castleTalk(this.create_packet_for(id_bool, puppet.me.x));
-        break;
-    }
+    this.process_visible_robots_using(puppet, handle_enemy, handle_friendly, completion);
 
-    // puppet.log("NEW CASTLE RUNNING");
-    // puppet.log("Robots detected: " + visible_robots.length);
-    // for (var i = 0; i < visible_robots.length; i++) {
-    //   puppet.log("ID: " + visible_robots[i].id);
-    //   puppet.log("Turn: " + visible_robots[i].turn);
-    //   puppet.log("Signal Radius: " + visible_robots[i].signal_radius);
-    // }
+    let id_bool = Boolean(this.place_in_turn_queue%2);
+    this.our_castles[puppet.me.id] = new Castle(this.place_in_turn_queue, puppet.me.x, puppet.me.y, id_bool);
+    puppet.castleTalk(super.small_packet_for(id_bool, puppet.me.x));
 
     this.initialized = true;
-  }
-
-  create_packet_for(bool, coord) {
-    // var packet = (128 + coord).toString(2);
-    // if (!bool) {packet = packet.replace('1', '0')}
-    // return packet;
-    return (bool ? 128 + coord : coord);
-  }
-  get_bool_coord_from(packet) {
-    var bool = packet >= 128;
-    // var coord = parseInt(packet, 2);
-    if (bool) {packet -= 128;}
-    return [bool, packet];
   }
 
   find_buildable_tiles_around(x, y, map) {
@@ -143,46 +226,28 @@ export class CastleSource {
     }
   }
 
-  find_symmetry_style_of(terrain, fuel, karbonite) {
-    var left_right = true;
-    var top_bottom = true;
-    loop1:
-    for (var i = 0; i < this.map_rows/2; i++) {
-      let i_inv = this.map_rows - 1 - i;
-
-      let terrain_top = terrain[i];
-      let terrain_bottom = terrain[i_inv];
-      let fuel_top = fuel[i];
-      let fuel_bottom = fuel[i_inv];
-      let karbonite_top = karbonite[i];
-      let karbonite_bottom = karbonite[i_inv];
-
-      loop2:
-      for (var j = 0; j < this.map_cols/2; j++) {
-        let j_inv = this.map_cols - 1 - j;
-
-        let top_left = terrain_top[j] + fuel_top[j]*2 + karbonite_top[j]*3;
-        let top_right = terrain_top[j_inv] + fuel_top[j_inv]*2 + karbonite_top[j_inv]*3;
-        let bottom_left = terrain_bottom[j] + fuel_bottom[j]*2 + karbonite_bottom[j]*3;
-
-        if (top_left != top_right) {left_right = false; break loop1;}
-        else if (top_left != bottom_left) {top_bottom = false; break loop1;}
-      }
+  process_visible_robots_using(puppet, handle_enemy, handle_friendly, completion) {
+    // because this is a castle, includes everything in 100 r^2 and own team
+    let visible_robots = puppet.getVisibleRobots();
+    // iterate through all results
+    for (var i = visible_robots.length - 1; i >= 0; i--) {
+      let robot = visible_robots[i];
+      /*
+      If opponents show up, it's because they're visible, in which case
+      their team # will be accessible. If it's the opposite of our team #,
+      treat them differently. In any other case (team # matches ours or
+      is null) treat them as family.
+      */
+      if (robot.team == !puppet.me.team) {handle_enemy(robot, this); continue}
+      else if (robot.id == puppet.me.id) {continue}
+      else {handle_friendly(robot, this); continue}
     }
-
-    this.symmetry_style = [left_right, top_bottom];
+    completion(visible_robots, this);
   }
+
+
 
   // find_partner_for(coordinates, symmetry) {
   //
-  // }
-
-  // count_castles(puppet) {
-  //   // wait for turn 2 so that we can detect some sort of castle talk
-  //   this.castles_per_team = 1;// TODO use castle talk to make this correct
-  //
-  //   if (this.castles_per_team%2) {// is odd
-  //
-  //   }
   // }
 }

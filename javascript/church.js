@@ -1,4 +1,5 @@
 import {SPECS} from 'battlecode';
+import {CommonSource} from './common.js';
 import {find_path} from './astar.js';
 
 export class ChurchSource {
