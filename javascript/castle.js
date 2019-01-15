@@ -19,13 +19,13 @@ export class CastleSource extends CommonSource {
     // Variables to set once (as soon as we receive a puppet instance)
     this.place_in_turn_queue = null;
     this.buildable_tiles = [];
+    this.castle_count = null;
+    this.our_castles = {};
     // Are all the above set?
     this.initialized = false;
 
     // Variables to set once (after more information becomes available)
-    this.castle_count = null;
     this.other_units = {};
-    this.our_castles = {};
     this.their_castles = {};
   }
 
@@ -40,81 +40,116 @@ export class CastleSource extends CommonSource {
   return puppet.castleTalk(value);
   */
   get_action_for(puppet) {
-    if (!this.initialized) {this.initialize_with(puppet);}
+    switch (puppet.me.turn) {
+      case 1:
+        this.init_first_turn(puppet);
 
-    if (puppet.me.turn == 1) {
-      let i = Math.floor(Math.random() * this.buildable_tiles.length);
-      let direction = this.buildable_tiles[i];
+        let i = Math.floor(Math.random() * this.buildable_tiles.length);
+        let direction = this.buildable_tiles[i];
 
-      // DEBUG
-      puppet.log("CASTLE " + puppet.me.id + " TURN 1");
-      puppet.log("Place in queue: " + this.place_in_turn_queue);
-      puppet.log("X: " + puppet.me.x + ", Y: " + puppet.me.y);
-      puppet.log("Placing on: " + direction);
-      puppet.log("--------------------------------------------------");
+        // DEBUG
+        puppet.log("CASTLE " + puppet.me.id + " TURN 1");
+        puppet.log("Place in queue: " + this.place_in_turn_queue);
+        puppet.log("X: " + puppet.me.x + ", Y: " + puppet.me.y);
+        puppet.log("Placing on: " + direction);
+        puppet.log("--------------------------------------------------");
 
-      if (this.place_in_turn_queue == 2) {
-        return puppet.buildUnit(SPECS.CRUSADER, direction[0], direction[1]);
-      }else {
-        return puppet.buildUnit(SPECS.PILGRIM, direction[0], direction[1]);
-      }
-    }
-    else if (puppet.me.turn == 2) {
-      this.second_init(puppet);
+        if (this.place_in_turn_queue == 2) {return puppet.buildUnit(SPECS.CRUSADER, direction[0], direction[1]);}
+        else {return puppet.buildUnit(SPECS.PILGRIM, direction[0], direction[1]);}
 
-      // DEBUG
-      puppet.log("CASTLE " + puppet.me.id + " TURN 2");
-      puppet.log("Detected " + this.castle_count + " castles");
-      for (var id in this.our_castles) {
-        let castle = this.our_castles[id];
-        puppet.log("--ID: " + id);
-        puppet.log("--X: " + castle.x);
-        puppet.log("--Y: " + castle.y);
-        puppet.log("--")
-      }
-      puppet.log("--------------------------------------------------");
+        break;
+      case 2:
+        this.init_second_turn(puppet);
+        this.initialized = true;
+
+        // DEBUG
+        puppet.log("CASTLE " + puppet.me.id + " TURN 2");
+        puppet.log("Detected " + this.castle_count + " castles");
+        for (var id in this.our_castles) {
+          let castle = this.our_castles[id];
+          puppet.log("--ID: " + id);
+          puppet.log("--X: " + castle.x);
+          puppet.log("--Y: " + castle.y);
+          puppet.log("--")
+        }
+        puppet.log("--------------------------------------------------");
+
+        break;
     }
   }
 
-  second_init(puppet) {
+  init_first_turn(puppet) {
+    super.initialize_with(puppet);
+    this.find_buildable_tiles_around(puppet.me.x, puppet.me.y, puppet.map);
+    // start at 0, will basically become castle # (1, 2, or 3)
+    this.place_in_turn_queue = 1;
 
     function handle_enemy(robot, inst) {}
-    function handle_friendly_for_2_part_A(robot, inst) {
-      if ((robot.turn == 2) && (inst.castle_count == 3)) {
+    function handle_friendly(robot, inst) {
+      if (robot.turn == 1) {
+        inst.place_in_turn_queue++;
+        let castle_talk = inst.get_bool_coord_from(robot.castle_talk);
+        inst.our_castles[robot.id] = new Castle(null, castle_talk[1], null, castle_talk[0]);
+      }else {
+        inst.other_units[robot.id] = new Castle();
+      }
+    }
+    function completion(visible_robots, inst) {}
+    this.process_visible_robots_using(puppet, handle_enemy, handle_friendly, completion);
+
+    switch (this.place_in_turn_queue) {
+      case 1:
+        this.our_castles = this.other_units;
+        this.castle_count = Object.keys(this.our_castles).length + 1;
+        break
+      case 2:
+        this.our_castles[Object.keys(this.our_castles)[0]].place_in_turn_queue = 1;
+        this.castle_count = Object.keys(this.our_castles).length + Object.keys(this.other_units).length;
+        break
+      case 3:
+        this.castle_count = Object.keys(this.our_castles).length + 1;
+    }
+
+    let id_bool = Boolean(this.place_in_turn_queue%2);
+    this.our_castles[puppet.me.id] = new Castle(this.place_in_turn_queue, puppet.me.x, puppet.me.y, id_bool);
+    puppet.castleTalk(super.small_packet_for(id_bool, puppet.me.x));
+  }
+
+  init_second_turn(puppet) {
+
+    function handle_enemy(robot, inst) {}
+    function extra_data_receiver(robot, inst) {
+      if (robot.turn == 2) {
         let castle_talk = inst.get_bool_coord_from(robot.castle_talk);
         let is_pilgrim_1_larger_than_castle_3 = castle_talk[1];
         let possible_castle_ids = Object.keys(inst.other_units);
         let castle3ID = (is_pilgrim_1_larger_than_castle_3 ? Math.min(...possible_castle_ids) : Math.max(...possible_castle_ids));
         inst.our_castles[castle3ID] = new Castle(3, null, null, true);
+        return true;
       }
     }
-    function handle_friendly_for_2_part_B(robot, inst) {
+    function handle_friendly(robot, inst) {
+      // filters out [castles that have already had 2 turns] and [units creates after the first round]
       if (robot.turn == 1) {
+        // arr[1] should be an x or y value
+        // arr[0] should indicate whether that value corresponds to an odd-numbered castle or an even one
         let castle_talk = inst.get_bool_coord_from(robot.castle_talk);
+        // if this is known to be a castle, simply update values with new castle_talk
+        // NOTE: no castles will reach the other conditionals in this block
         if (inst.our_castles[robot.id]) {
           inst.our_castles[robot.id].id_bool = castle_talk[0];
           inst.our_castles[robot.id].x = castle_talk[1];
-        }else if (inst.other_units[robot.id] && (castle_talk[1] != puppet.me.y)) {
+        }
+        // unique to castle 2, this updates castles 1 and 3 using castle_talk from their children
+        // NOTE: this conditional can be ignored unless reading castle 2 logic
+        else if ((inst.place_in_turn_queue == 2) && castle_talk[0]) {
           for (var id in inst.our_castles) {
-            if (inst.our_castles[id].place_in_turn_queue == 1) {inst.our_castles[id].y = castle_talk[1];}
-          }
-        }else if (castle_talk[1] != puppet.me.y) {
-          for (var id in inst.our_castles) {
-            if (inst.our_castles[id].place_in_turn_queue == 3) {inst.our_castles[id].y = castle_talk[1];}
+            if ((inst.our_castles[id].place_in_turn_queue == 1) && inst.other_units[robot.id]) {inst.our_castles[id].y = castle_talk[1];}
+            else if ((inst.our_castles[id].place_in_turn_queue == 3) && !inst.other_units[robot.id]) {inst.our_castles[id].y = castle_talk[1];}
           }
         }
-      }
-    }
-    if (this.place_in_turn_queue%2) {this.other_units = {};}
-    function handle_friendly_for_others(robot, inst) {
-      if (robot.turn == 1) {
-        let castle_talk = inst.get_bool_coord_from(robot.castle_talk);
-        if (inst.our_castles[robot.id]) {
-          inst.our_castles[robot.id].id_bool = castle_talk[0];
-          inst.our_castles[robot.id].x = castle_talk[1];
-        }else {
-          inst.other_units[robot.id] = castle_talk;
-        }
+        // save castle_talk of non-castles for future use
+        else {inst.other_units[robot.id] = castle_talk;}
       }
     }
     function completion(visible_robots, inst) {
@@ -132,70 +167,26 @@ export class CastleSource extends CommonSource {
         }
         puppet.castleTalk(inst.small_packet_for(true, (pilgrim1ID > castle3ID)));
       }
-
-      if (inst.place_in_turn_queue%2) {
-        for (var unit_id in inst.other_units) {
-          let castle_talk = inst.other_units[unit_id];
-          if (puppet.me.y == castle_talk[1]) {continue}
-          for (var castle_id in inst.our_castles) {
-            if ((castle_id != puppet.me.id) && (inst.our_castles[castle_id].id_bool == inst.other_units[unit_id][0])) {
-
-              inst.our_castles[castle_id].y = inst.other_units[unit_id][1];
-            }
-          }
-        }
-      }
     }
 
     if (this.place_in_turn_queue%2) {
-      this.process_visible_robots_using(puppet, handle_enemy, handle_friendly_for_others, completion);
+      this.other_units = {};
+      this.process_visible_robots_using(puppet, handle_enemy, handle_friendly, completion);
+
+      for (var unit_id in this.other_units) {
+        let castle_talk = this.other_units[unit_id];
+        for (var castle_id in this.our_castles) {
+          let castle = this.our_castles[castle_id];
+          if ((castle_id != puppet.me.id) && (castle_talk[0] == castle.id_bool) &&
+              ((castle.y == null) || (castle.y == puppet.me.y))) {
+              castle.y = castle_talk[1];
+          }
+        }
+      }
     }else {
-      this.process_visible_robots_using(puppet, handle_enemy, handle_friendly_for_2_part_A, completion);
-      this.process_visible_robots_using(puppet, handle_enemy, handle_friendly_for_2_part_B, completion);
+      if (this.castle_count == 3) {this.process_visible_robots_using(puppet, handle_enemy, extra_data_receiver, completion);}
+      this.process_visible_robots_using(puppet, handle_enemy, handle_friendly, completion);
     }
-  }
-
-
-  initialize_with(puppet) {
-    super.initialize_with(puppet);
-    this.find_buildable_tiles_around(puppet.me.x, puppet.me.y, puppet.map);
-    // start at 0, will basically become castle # (1, 2, or 3)
-    this.place_in_turn_queue = 1;
-
-    function handle_enemy(robot, inst) {}
-    function handle_friendly(robot, inst) {
-      if (robot.turn == 1) {
-        inst.place_in_turn_queue++;
-        let castle_talk = inst.get_bool_coord_from(robot.castle_talk);
-        inst.our_castles[robot.id] = new Castle();
-        inst.our_castles[robot.id].id_bool = castle_talk[0];
-        inst.our_castles[robot.id].x = castle_talk[1];
-      }else {
-        inst.other_units[robot.id] = new Castle();
-      }
-    }
-    function completion(visible_robots, inst) {
-      switch (inst.place_in_turn_queue) {
-        case 1:
-          inst.our_castles = inst.other_units;
-          inst.castle_count = Object.keys(inst.our_castles).length + 1;
-          break
-        case 2:
-          inst.our_castles[Object.keys(inst.our_castles)[0]].place_in_turn_queue = 1;
-          inst.castle_count = Object.keys(inst.our_castles).length + Object.keys(inst.other_units).length;
-          break
-        case 3:
-          inst.castle_count = Object.keys(inst.our_castles).length + 1;
-      }
-    }
-
-    this.process_visible_robots_using(puppet, handle_enemy, handle_friendly, completion);
-
-    let id_bool = Boolean(this.place_in_turn_queue%2);
-    this.our_castles[puppet.me.id] = new Castle(this.place_in_turn_queue, puppet.me.x, puppet.me.y, id_bool);
-    puppet.castleTalk(super.small_packet_for(id_bool, puppet.me.x));
-
-    this.initialized = true;
   }
 
   find_buildable_tiles_around(x, y, map) {
@@ -219,9 +210,9 @@ export class CastleSource extends CommonSource {
       treat them differently. In any other case (team # matches ours or
       is null) treat them as family.
       */
-      if (robot.team == !puppet.me.team) {handle_enemy(robot, this); continue}
+      if (robot.team == !puppet.me.team) {if(handle_enemy(robot, this)) {break}}
       else if (robot.id == puppet.me.id) {continue}
-      else {handle_friendly(robot, this); continue}
+      else {if(handle_friendly(robot, this)) {break}}
     }
     completion(visible_robots, this);
   }
