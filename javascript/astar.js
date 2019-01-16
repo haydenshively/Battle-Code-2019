@@ -1,17 +1,8 @@
+import {CommonSource} from './common.js';
 import {PriorityQueue} from './queue.js'
 
-const unit_ring = [
-  [0, -1],
-  [0, 1],
-  [-1, 0],
-  [1, 0],
-  [-1, -1],
-  [-1, 1],
-  [1, -1],
-  [1, 1]
-];
+const unit_ring = [[0, -1], [0, 1], [-1, 0], [1, 0], [-1, -1], [-1, 1], [1, -1], [1, 1]];
 const unit_ring_length = 8;
-
 
 class Node {
   constructor(parent, position) {
@@ -32,19 +23,17 @@ class Node {
   }
 }
 
-function node_comparator(a, b) {
-  return a.f < b.f;
-}
+function node_comparator(a, b) {return a.f < b.f;}
 
 function makeArray(w, h, val) {
-    var arr = [];
-    for(var i = 0; i < h; i++) {
-        arr[i] = [];
-        for(var j = 0; j < w; j++) {
-            arr[i][j] = val;
-        }
+  var arr = [];
+  for (var i = 0; i < h; i++) {
+    arr[i] = [];
+    for (var j = 0; j < w; j++) {
+        arr[i][j] = val;
     }
-    return arr;
+  }
+  return arr;
 }
 
 export function find_path(start, end, map) {

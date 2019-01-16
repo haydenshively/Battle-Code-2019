@@ -47,34 +47,33 @@ export class CastleSource extends CommonSource {
         let i = Math.floor(Math.random() * this.buildable_tiles.length);
         let direction = this.buildable_tiles[i];
 
-        // DEBUG
-        puppet.log("CASTLE " + puppet.me.id + " TURN 1");
-        puppet.log("Place in queue: " + this.place_in_turn_queue);
-        puppet.log("X: " + puppet.me.x + ", Y: " + puppet.me.y);
+        // LOG
+        puppet.log("CASTLE TURN 1");
+        puppet.log("X: " + puppet.me.x + "  Y: " + puppet.me.y);
         puppet.log("Placing on: " + direction);
         puppet.log("--------------------------------------------------");
 
         if (this.place_in_turn_queue == 2) {return puppet.buildUnit(SPECS.CRUSADER, direction[0], direction[1]);}
         else {return puppet.buildUnit(SPECS.PILGRIM, direction[0], direction[1]);}
 
-        break;
       case 2:
         this.init_second_turn(puppet);
         this.initialized = true;
 
-        // DEBUG
-        puppet.log("CASTLE " + puppet.me.id + " TURN 2");
-        puppet.log("Detected " + this.castle_count + " castles");
+        // LOG
+        puppet.log("CASTLE TURN 2");
         for (var id in this.our_castles) {
           let castle = this.our_castles[id];
-          puppet.log("--ID: " + id);
-          puppet.log("--X: " + castle.x);
-          puppet.log("--Y: " + castle.y);
-          puppet.log("--")
+          puppet.log("Found ID: " + id + "  X: " + castle.x + "  Y: " + castle.y);
         }
         puppet.log("--------------------------------------------------");
 
         break;
+
+      default:
+        // let i = Math.floor(Math.random() * this.buildable_tiles.length);
+        // let direction = this.buildable_tiles[i];
+        // if (this.karbonite >= 60) {return puppet.buildUnit(SPECS.PILGRIM, direction[0], direction[1]);}
     }
   }
 
@@ -95,7 +94,7 @@ export class CastleSource extends CommonSource {
       }
     }
     function completion(visible_robots, inst) {}
-    this.process_visible_robots_using(puppet, handle_enemy, handle_friendly, completion);
+    super.process_visible_robots_using(puppet, handle_enemy, handle_friendly, completion);
 
     switch (this.place_in_turn_queue) {
       case 1:
@@ -171,7 +170,7 @@ export class CastleSource extends CommonSource {
 
     if (this.place_in_turn_queue%2) {
       this.other_units = {};
-      this.process_visible_robots_using(puppet, handle_enemy, handle_friendly, completion);
+      super.process_visible_robots_using(puppet, handle_enemy, handle_friendly, completion);
 
       for (var unit_id in this.other_units) {
         let castle_talk = this.other_units[unit_id];
@@ -184,8 +183,8 @@ export class CastleSource extends CommonSource {
         }
       }
     }else {
-      if (this.castle_count == 3) {this.process_visible_robots_using(puppet, handle_enemy, extra_data_receiver, completion);}
-      this.process_visible_robots_using(puppet, handle_enemy, handle_friendly, completion);
+      if (this.castle_count == 3) {super.process_visible_robots_using(puppet, handle_enemy, extra_data_receiver, completion);}
+      super.process_visible_robots_using(puppet, handle_enemy, handle_friendly, completion);
     }
   }
 
@@ -196,25 +195,6 @@ export class CastleSource extends CommonSource {
       let row = y + direction[1];
       if (map[row][col]) {this.buildable_tiles.push(direction);}
     }
-  }
-
-  process_visible_robots_using(puppet, handle_enemy, handle_friendly, completion) {
-    // because this is a castle, includes everything in 100 r^2 and own team
-    let visible_robots = puppet.getVisibleRobots();
-    // iterate through all results
-    for (var i = visible_robots.length - 1; i >= 0; i--) {
-      let robot = visible_robots[i];
-      /*
-      If opponents show up, it's because they're visible, in which case
-      their team # will be accessible. If it's the opposite of our team #,
-      treat them differently. In any other case (team # matches ours or
-      is null) treat them as family.
-      */
-      if (robot.team == !puppet.me.team) {if(handle_enemy(robot, this)) {break}}
-      else if (robot.id == puppet.me.id) {continue}
-      else {if(handle_friendly(robot, this)) {break}}
-    }
-    completion(visible_robots, this);
   }
 
 

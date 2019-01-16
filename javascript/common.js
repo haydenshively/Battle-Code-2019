@@ -42,6 +42,26 @@ export class CommonSource {
     this.symmetry_style = [left_right, top_bottom];
   }
 
+  process_visible_robots_using(puppet, handle_enemy, handle_friendly, completion) {
+    // includes everything in vision radius
+    // if castle, also includes our entire team (for castle_talk)
+    let visible_robots = puppet.getVisibleRobots();
+    // iterate through all results
+    for (var i = visible_robots.length - 1; i >= 0; i--) {
+      let robot = visible_robots[i];
+      /*
+      If opponents show up, it's because they're visible, in which case
+      their team # will be accessible. If it's the opposite of our team #,
+      treat them differently. In any other case (team # matches ours or
+      is null) treat them as family.
+      */
+      if (robot.team == !puppet.me.team) {if(handle_enemy(robot, this)) {break}}
+      else if (robot.id == puppet.me.id) {continue}
+      else {if(handle_friendly(robot, this)) {break}}
+    }
+    completion(visible_robots, this);
+  }
+
   small_packet_for(bool, coord) {return (bool ? 128 + coord : coord);}
   get_bool_coord_from(small_packet) {
     if (small_packet >= 128) {return [true, small_packet - 128];}

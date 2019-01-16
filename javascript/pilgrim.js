@@ -3,11 +3,11 @@ import {CommonSource} from './common.js';
 import {find_path} from './astar.js';
 
 class Castle {
-  constructor(id = null, id_bool = null, x = null, y = null) {
+  constructor(id = null, x = null, y = null, id_bool = null) {
     this.id = id;
-    this.id_bool = id_bool;
     this.x = x;
     this.y = y;
+    this.id_bool = id_bool;
   }
 }
 
@@ -38,28 +38,16 @@ export class PilgrimSource extends CommonSource{
   initialize_with(puppet) {
     super.initialize_with(puppet);
 
-    // includes everything in 100 r^2
-    let visible_robots = puppet.getVisibleRobots();
-    // iterate through all results
-    for (var i = visible_robots.length - 1; i >= 0; i--) {
-      let robot = visible_robots[i];
-      if (robot.team != puppet.me.team) {
-        continue// TODO
-      }
-      // if robot is self
-      else if (robot.id == puppet.me.id) {
-        continue// TODO
-      }
+    function handle_enemy() {}
+    function handle_friendly(robot, inst) {
       // if robot is parent //TODO what if 2 castles are really close together
-      else if (CommonSource.r_sq_between(puppet.me.x, puppet.me.y, robot.x, robot.y) <= 2) {
-        this.parent = new Castle(robot.id, null, robot.x, robot.y);
-        puppet.castleTalk(super.small_packet_for(true, robot.y));
-      }
-      // if robot is something else on our team
-      else {
-        continue// TODO
+      if (CommonSource.r_sq_between(puppet.me.x, puppet.me.y, robot.x, robot.y) <= 2) {
+        inst.parent = new Castle(robot.id, robot.x, robot.y, null);
+        puppet.castleTalk(inst.small_packet_for(true, robot.y));
       }
     }
+    function completion() {}
+    super.process_visible_robots_using(puppet, handle_enemy, handle_friendly, completion);
 
     this.initialized = true;
   }
