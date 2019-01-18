@@ -69,4 +69,51 @@ export class CommonSource {
   }
 
   static r_sq_between(x1, y1, x2, y2) {return (x2 - x1)**2 + (y2 - y1)**2;}
+
+  // estimate_resource_distances(from, map) {
+  //   var found = [];
+  //   var min = 9000;
+  //   found.push([-1, -1, min]);
+  //   for (var i = 0; i < this.map_rows; i++) {
+  //     for (var j = 0; j < this.map_cols; j++) {
+  //       if (map[i][j]) {
+  //         let r_squared = (from[0] - j)*(from[0] - j) + (from[1] - i)*(from[1] - i);
+  //         if (r_squared < min) {found.push([j, i, r_squared]); min = r_squared;}
+  //       }
+  //     }
+  //   }
+  //   return found;
+  // }
+  find_nearest_resource(from, map) {
+    if (map[from[1]][from[0]]) {return from;}
+
+    var found = false;
+    var k = 1;
+    var i = 0;
+    var x = from[0] - k;
+    var y = from[1] - k;
+    var delta = [0, -1];
+    while (!found) {
+      // if we need to change directions in the spiral
+      if (i%(2*k) == 0) {
+        if (delta[0]) {delta[1] = delta[0]; delta[0] = 0;}
+        else {delta[0] = -delta[1]; delta[1] = 0;}
+      }
+      // finished current ring, expand search radius
+      if (i == 8*k) {
+        k++;
+        i = 0;
+        x = from[0] - k;
+        y = from[1] - k;
+      }
+
+      if (map[y] && map[y][x]) {found = true; break}
+      x += delta[0];
+      y += delta[1];
+
+      i++;
+    }
+
+    return [x, y];
+  }
 }
