@@ -15,7 +15,7 @@ export class PilgrimSource extends CommonSource{
 
     this.path = [];
 
-    this.has_built_church = false;
+    this.has_church = false;
     this.church_location = []
     this.should_mine = false;
   }
@@ -34,7 +34,7 @@ export class PilgrimSource extends CommonSource{
   get_action_for(puppet) {
     if (puppet.me.turn == 1) this.initialize_with(puppet);
     // still preparing to start mining and refining
-    if (!this.has_built_church) {
+    if (!this.has_church) {
       this.update_path(puppet, puppet.map, puppet.getVisibleRobotMap(), CommonSource.most_crucial_resource_map(puppet));
       // travel
       if (this.path.length > 1) {
@@ -43,10 +43,18 @@ export class PilgrimSource extends CommonSource{
         this.path.shift();
         return puppet.move(dx, dy);
       }
+      else if (this.searchForChurchAround(puppet.me.x, puppet.me.y, puppet)) {
+        this.has_church = true;
+        // LOG
+        puppet.log("PILGRIM FOUND CHURCH");
+        puppet.log("X: " + puppet.me.x + "  Y: " + puppet.me.y);
+        puppet.log("Exists on: " + this.church_location);
+        puppet.log("--------------------------------------------------");
+      }
       // build church
       else if (CommonSource.can_build(SPECS.CHURCH, puppet)) {
-        this.has_built_church = true;
-        this.church_location = this.find_best_church_spot(puppet.me.x, puppet.me.y, puppet);
+        this.has_church = true;
+        this.find_best_church_spot(puppet.me.x, puppet.me.y, puppet);
         // LOG
         puppet.log("PILGRIM BUILDING CHURCH");
         puppet.log("X: " + puppet.me.x + "  Y: " + puppet.me.y);
@@ -77,6 +85,26 @@ export class PilgrimSource extends CommonSource{
     this.path = find_path([puppet.me.x, puppet.me.y], target, terrain_map, troop_map, SPECS.PILGRIM);
   }
 
+  searchForChurchAround(x, y, puppet) {
+    let troop_map = puppet.getVisibleRobotMap();
+
+    for (var i = unit_ring_length - 1; i >= 0; i--) {
+      let direction = unit_ring[i];
+      let col = x + direction[0];
+      let row = y + direction[1];
+      if (puppet.map[row] && (troop_map[row][col] > 0)) {
+        let troop = puppet.getRobot(troop_map[row][col]);
+        if ((troop.team == puppet.me.team) && (troop.unit == SPECS.CHURCH)) {
+          this.church_location = direction;
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  // TODO combine with searchForChurchAround
   find_best_church_spot(x, y, puppet) {
     let troop_map = puppet.getVisibleRobotMap();
 
@@ -93,7 +121,8 @@ export class PilgrimSource extends CommonSource{
           let direction2 = unit_ring[j];
           let hazard_col = near_col + direction2[0];
           let hazard_row = near_row + direction2[1];
-          if (!troop_map[hazard_row]) {continue}
+          if ((hazard_row == x) && (hazard_col == y)) continue
+          if (!troop_map[hazard_row]) continue
           let troop_map_tile = troop_map[hazard_row][hazard_col];
           if (troop_map_tile > 0) {
             let troop = puppet.getRobot(troop_map_tile);
@@ -117,13 +146,15 @@ export class PilgrimSource extends CommonSource{
               }
             }
           }
+
+          if (puppet.karbonite_map[hazard_row][hazard_col] || puppet.fuel_map[hazard_row][hazard_col]) score += 4;
         }
         if (!best_score || (score > best_score)) {best_score = score; bests = [direction1];}
         else if (score == best_score) {bests.push(direction1);}
       }
     }
 
-    return bests[Math.floor(Math.random() * bests.length)];
+    this.church_location = bests[Math.floor(Math.random() * bests.length)];
   }
 
   initialize_with(puppet) {

@@ -72,7 +72,7 @@ export class CommonSource {
 
   static r_sq_between(x1, y1, x2, y2) {return (x2 - x1)**2 + (y2 - y1)**2;}
 
-  static most_crucial_resource_map(puppet) {return (puppet.karbonite <= puppet.fuel ? puppet.karbonite_map : puppet.fuel_map);}
+  static most_crucial_resource_map(puppet) {return (3*puppet.karbonite <= puppet.fuel ? puppet.karbonite_map : puppet.fuel_map);}
 
   static can_build(robot_type, puppet) {
     let spec = SPECS.UNITS[robot_type];

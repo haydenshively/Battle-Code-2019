@@ -40,13 +40,13 @@ export class CastleSource extends CommonSource {
   return puppet.castleTalk(value);
   */
   get_action_for(puppet) {
+    let direction;
+
     switch (puppet.me.turn) {
       case 1:
         this.init_first_turn(puppet);
 
-        let i = Math.floor(Math.random() * this.buildable_tiles.length);
-        let direction = this.buildable_tiles[i];
-
+        direction = this.buildable_tiles[Math.floor(Math.random() * this.buildable_tiles.length)];
         // LOG
         puppet.log("CASTLE TURN 1");
         puppet.log("X: " + puppet.me.x + "  Y: " + puppet.me.y);
@@ -55,6 +55,8 @@ export class CastleSource extends CommonSource {
 
         if (this.place_in_turn_queue == 2) {return puppet.buildUnit(SPECS.CRUSADER, direction[0], direction[1]);}
         else {return puppet.buildUnit(SPECS.PILGRIM, direction[0], direction[1]);}
+
+        break;
 
       case 2:
         this.init_second_turn(puppet);
@@ -71,9 +73,8 @@ export class CastleSource extends CommonSource {
         break;
 
       default:
-        // let i = Math.floor(Math.random() * this.buildable_tiles.length);
-        // let direction = this.buildable_tiles[i];
-        // if (this.karbonite >= 60) {return puppet.buildUnit(SPECS.PILGRIM, direction[0], direction[1]);}
+        direction = this.buildable_tiles[Math.floor(Math.random() * this.buildable_tiles.length)];
+        if ((puppet.fuel >= 350) && (puppet.karbonite >= 80)) {return puppet.buildUnit(SPECS.PILGRIM, direction[0], direction[1]);}
     }
   }
 
