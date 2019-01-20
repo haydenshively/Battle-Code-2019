@@ -2,6 +2,9 @@ import {SPECS} from 'battlecode';
 import {CommonSource} from './common.js';
 import {find_path} from './astar.js';
 
+const unit_ring = [[0, -1], [0, 1], [-1, 0], [1, 0], [-1, -1], [-1, 1], [1, -1], [1, 1]];
+const unit_ring_length = 8;
+
 export class PilgrimSource extends CommonSource{
   constructor() {
     super();
@@ -12,7 +15,9 @@ export class PilgrimSource extends CommonSource{
 
     this.path = [];
 
+    this.church_location = []
     this.has_built_church = false;
+    this.should_mine = true;
   }
 
   /*
@@ -29,7 +34,8 @@ export class PilgrimSource extends CommonSource{
   get_action_for(puppet) {
     if (puppet.me.turn == 1) {
       this.initialize_with(puppet);
-      this.update_path(puppet, puppet.map, this.most_crucial_resource_map(puppet));
+      // TODO must update more often because of low vision radius
+      this.update_path(puppet, puppet.map, puppet.getVisibleRobotMap(), this.most_crucial_resource_map(puppet));
     }
 
     if (this.path.length > 1) {
@@ -39,7 +45,19 @@ export class PilgrimSource extends CommonSource{
       return puppet.move(dx, dy);
     }else {
       if (!this.has_built_church && this.can_build_church(puppet)) {
-        return puppet.buildUnit(SPECS.CHURCH, -1, 1);
+        this.church_location = this.find_best_church_spot(puppet.me.x, puppet.me.y, puppet);
+        puppet.log("Church Location: " + this.church_location);
+        this.has_built_church = true;
+        return puppet.buildUnit(SPECS.CHURCH, this.church_location[0], this.church_location[1]);
+      }else if (this.has_built_church) {
+        if (this.should_mine) {
+          this.should_mine = !this.should_mine;
+          puppet.log("MINING!!");
+          return puppet.mine();}
+        else {
+          this.should_mine = !this.should_mine;
+          puppet.log("GIVING!!")
+          return puppet.give(this.church_location[0], this.church_location[1], puppet.me.karbonite, puppet.me.fuel);}
       }
     }
   }
@@ -52,9 +70,9 @@ export class PilgrimSource extends CommonSource{
   most_crucial_resource_map(puppet) {return (puppet.karbonite <= puppet.fuel ? puppet.karbonite_map : puppet.fuel_map);}
 
   // TODO read data from signal instead of constant [15, 15]
-  update_path(puppet, terrain_map, resource_map) {
+  update_path(puppet, terrain_map, troop_map, resource_map) {
     let target = (this.parent_signal > -1 ? [15, 15] : super.find_nearest_resource([puppet.me.x, puppet.me.y], resource_map));
-    this.path = find_path([puppet.me.x, puppet.me.y], target, terrain_map, SPECS.PILGRIM);
+    this.path = find_path([puppet.me.x, puppet.me.y], target, terrain_map, troop_map, SPECS.PILGRIM);
   }
 
   initialize_with(puppet) {
@@ -76,5 +94,53 @@ export class PilgrimSource extends CommonSource{
     }
     function completion(robot, inst) {}
     super.process_visible_robots_using(puppet, handle_enemy, handle_friendly, completion);
+  }
+
+  find_best_church_spot(x, y, puppet) {
+    let troop_map = puppet.getVisibleRobotMap();
+
+    var best_score = false;
+    var bests = [];
+
+    for (var i = unit_ring_length - 1; i >= 0; i--) {
+      let direction1 = unit_ring[i];
+      let near_col = x + direction1[0];
+      let near_row = y + direction1[1];
+      if (puppet.map[near_row] && puppet.map[near_row][near_col] && (troop_map[near_row][near_col] <= 0) && !puppet.karbonite_map[near_row][near_col] && !puppet.fuel_map[near_row][near_col]) {
+        var score = 64;
+        for (var j = unit_ring_length - 1; j >= 0; j--) {
+          let direction2 = unit_ring[j];
+          let hazard_col = near_col + direction2[0];
+          let hazard_row = near_row + direction2[1];
+          let troop_map_tile = troop_map[hazard_row][hazard_col];
+          if (troop_map_tile > 0) {
+            let troop = puppet.getRobot(troop_map_tile);
+            if (troop.team == puppet.me.team) {
+              switch (troop.unit) {
+                case SPECS.CASTLE:
+                  score -= 2*(Math.abs(direction2[0]) + Math.abs(direction2[1]));
+                  break;
+                case SPECS.CHURCH:
+                  score -= Math.abs(direction2[0]) + Math.abs(direction2[1]);
+                  break;
+              }
+            }else {
+              switch (troop.unit) {
+                case SPECS.CASTLE:
+                  score += 2*(Math.abs(direction2[0]) + Math.abs(direction2[1]));
+                  break;
+                case SPECS.CHURCH:
+                  score += Math.abs(direction2[0]) + Math.abs(direction2[1]);
+                  break;
+              }
+            }
+          }
+        }
+        if (!best_score || (score > best_score)) {best_score = score; bests = [direction1];}
+        else if (score == best_score) {bests.push(direction1);}
+      }
+    }
+
+    return bests[Math.floor(Math.random() * bests.length)];
   }
 }

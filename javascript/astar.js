@@ -40,7 +40,7 @@ function makeArray(w, h, val) {
   return arr;
 }
 
-export function find_path(start, end, map, robot_type) {
+export function find_path(start, end, map, troop_map, robot_type) {
   var my_map = makeArray(map[0].length, map.length, true);
 
   let node_start = new Node(null, start);
@@ -82,6 +82,7 @@ export function find_path(start, end, map, robot_type) {
       }
       if (!map[child_position[1]][child_position[0]]) {continue}
       if (!my_map[child_position[1]][child_position[0]]) {continue}
+      if (troop_map[child_position[1]][child_position[0]] > 0) {continue}
 
       var child = new Node(tip, child_position);
       child.g = tip.g + delta[0]*delta[0] + delta[1]*delta[1];

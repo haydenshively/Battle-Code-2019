@@ -70,20 +70,6 @@ export class CommonSource {
 
   static r_sq_between(x1, y1, x2, y2) {return (x2 - x1)**2 + (y2 - y1)**2;}
 
-  // estimate_resource_distances(from, map) {
-  //   var found = [];
-  //   var min = 9000;
-  //   found.push([-1, -1, min]);
-  //   for (var i = 0; i < this.map_rows; i++) {
-  //     for (var j = 0; j < this.map_cols; j++) {
-  //       if (map[i][j]) {
-  //         let r_squared = (from[0] - j)*(from[0] - j) + (from[1] - i)*(from[1] - i);
-  //         if (r_squared < min) {found.push([j, i, r_squared]); min = r_squared;}
-  //       }
-  //     }
-  //   }
-  //   return found;
-  // }
   find_nearest_resource(from, map) {
     if (map[from[1]][from[0]]) {return from;}
 
