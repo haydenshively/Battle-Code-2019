@@ -87,7 +87,7 @@ export class CastleSource extends CommonSource {
     function handle_friendly(robot, inst) {
       if (robot.turn == 1) {
         inst.place_in_turn_queue++;
-        let castle_talk = inst.get_bool_coord_from(robot.castle_talk);
+        let castle_talk = CommonSource.get_bool_coord_from(robot.castle_talk);
         inst.our_castles[robot.id] = new Castle(null, castle_talk[1], null, castle_talk[0]);
       }else {
         inst.other_units[robot.id] = new Castle();
@@ -111,7 +111,7 @@ export class CastleSource extends CommonSource {
 
     let id_bool = Boolean(this.place_in_turn_queue%2);
     this.our_castles[puppet.me.id] = new Castle(this.place_in_turn_queue, puppet.me.x, puppet.me.y, id_bool);
-    puppet.castleTalk(super.small_packet_for(id_bool, puppet.me.x));
+    puppet.castleTalk(CommonSource.small_packet_for(id_bool, puppet.me.x));
   }
 
   init_second_turn(puppet) {
@@ -119,7 +119,7 @@ export class CastleSource extends CommonSource {
     function handle_enemy(robot, inst) {}
     function extra_data_receiver(robot, inst) {
       if (robot.turn == 2) {
-        let castle_talk = inst.get_bool_coord_from(robot.castle_talk);
+        let castle_talk = CommonSource.get_bool_coord_from(robot.castle_talk);
         let is_pilgrim_1_larger_than_castle_3 = castle_talk[1];
         let possible_castle_ids = Object.keys(inst.other_units);
         let castle3ID = (is_pilgrim_1_larger_than_castle_3 ? Math.min(...possible_castle_ids) : Math.max(...possible_castle_ids));
@@ -132,7 +132,7 @@ export class CastleSource extends CommonSource {
       if (robot.turn == 1) {
         // arr[1] should be an x or y value
         // arr[0] should indicate whether that value corresponds to an odd-numbered castle or an even one
-        let castle_talk = inst.get_bool_coord_from(robot.castle_talk);
+        let castle_talk = CommonSource.get_bool_coord_from(robot.castle_talk);
         // if this is known to be a castle, simply update values with new castle_talk
         // NOTE: no castles will reach the other conditionals in this block
         if (inst.our_castles[robot.id]) {
@@ -160,11 +160,11 @@ export class CastleSource extends CommonSource {
           if (robot.team == !puppet.me.team) {continue}
           else if (robot.id == puppet.me.id) {continue}
           else {
-            if (inst.get_bool_coord_from(robot.castle_talk)[0] && inst.our_castles[robot.id]) {castle3ID = robot.id;}
+            if (CommonSource.get_bool_coord_from(robot.castle_talk)[0] && inst.our_castles[robot.id]) {castle3ID = robot.id;}
             else if (CommonSource.r_sq_between(puppet.me.x, puppet.me.y, robot.x, robot.y) <= 2) {pilgrim1ID = robot.id;}//TODO
           }
         }
-        puppet.castleTalk(inst.small_packet_for(true, (pilgrim1ID > castle3ID)));
+        puppet.castleTalk(CommonSource.small_packet_for(true, (pilgrim1ID > castle3ID)));
       }
     }
 

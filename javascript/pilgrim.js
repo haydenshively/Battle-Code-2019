@@ -15,9 +15,9 @@ export class PilgrimSource extends CommonSource{
 
     this.path = [];
 
-    this.church_location = []
     this.has_built_church = false;
-    this.should_mine = true;
+    this.church_location = []
+    this.should_mine = false;
   }
 
   /*
@@ -32,68 +32,49 @@ export class PilgrimSource extends CommonSource{
   return puppet.castleTalk(value);
   */
   get_action_for(puppet) {
-    if (puppet.me.turn == 1) {
-      this.initialize_with(puppet);
-      // TODO must update more often because of low vision radius
-      this.update_path(puppet, puppet.map, puppet.getVisibleRobotMap(), this.most_crucial_resource_map(puppet));
-    }
-
-    if (this.path.length > 1) {
-      let dx = this.path[1][0] - puppet.me.x;
-      let dy = this.path[1][1] - puppet.me.y;
-      this.path.shift();
-      return puppet.move(dx, dy);
-    }else {
-      if (!this.has_built_church && this.can_build_church(puppet)) {
-        this.church_location = this.find_best_church_spot(puppet.me.x, puppet.me.y, puppet);
-        puppet.log("Church Location: " + this.church_location);
+    if (puppet.me.turn == 1) this.initialize_with(puppet);
+    // still preparing to start mining and refining
+    if (!this.has_built_church) {
+      this.update_path(puppet, puppet.map, puppet.getVisibleRobotMap(), CommonSource.most_crucial_resource_map(puppet));
+      // travel
+      if (this.path.length > 1) {
+        let dx = this.path[1][0] - puppet.me.x;
+        let dy = this.path[1][1] - puppet.me.y;
+        this.path.shift();
+        return puppet.move(dx, dy);
+      }
+      // build church
+      else if (CommonSource.can_build(SPECS.CHURCH, puppet)) {
         this.has_built_church = true;
+        this.church_location = this.find_best_church_spot(puppet.me.x, puppet.me.y, puppet);
+        // LOG
+        puppet.log("PILGRIM BUILDING CHURCH");
+        puppet.log("X: " + puppet.me.x + "  Y: " + puppet.me.y);
+        puppet.log("Placing on: " + this.church_location);
+        puppet.log("--------------------------------------------------");
         return puppet.buildUnit(SPECS.CHURCH, this.church_location[0], this.church_location[1]);
-      }else if (this.has_built_church) {
-        if (this.should_mine) {
-          this.should_mine = !this.should_mine;
-          puppet.log("MINING!!");
-          return puppet.mine();}
-        else {
-          this.should_mine = !this.should_mine;
-          puppet.log("GIVING!!")
-          return puppet.give(this.church_location[0], this.church_location[1], puppet.me.karbonite, puppet.me.fuel);}
       }
     }
+    // ready to mine and refine
+    else {
+      this.should_mine = !this.should_mine;
+      if (this.should_mine) return puppet.mine();
+      else return puppet.give(this.church_location[0], this.church_location[1], puppet.me.karbonite, puppet.me.fuel);
+    }
   }
 
-  can_build_church(puppet) {
-    let spec = SPECS.UNITS[SPECS.CHURCH];
-    return (puppet.karbonite >= spec.CONSTRUCTION_KARBONITE) && (puppet.fuel >= spec.CONSTRUCTION_FUEL);
-  }
-
-  most_crucial_resource_map(puppet) {return (puppet.karbonite <= puppet.fuel ? puppet.karbonite_map : puppet.fuel_map);}
 
   // TODO read data from signal instead of constant [15, 15]
   update_path(puppet, terrain_map, troop_map, resource_map) {
-    let target = (this.parent_signal > -1 ? [15, 15] : super.find_nearest_resource([puppet.me.x, puppet.me.y], resource_map));
-    this.path = find_path([puppet.me.x, puppet.me.y], target, terrain_map, troop_map, SPECS.PILGRIM);
-  }
+    var target = (this.parent_signal > -1 ? [15, 15] : super.find_nearest_resource([puppet.me.x, puppet.me.y], resource_map));
+    if ((puppet.me.x == target[0]) && (puppet.me.y == target[1])) {this.path = []; return}
 
-  initialize_with(puppet) {
-    super.initialize_with(puppet);
-
-    function handle_enemy(robot, inst) {}
-    function handle_friendly(robot, inst) {
-      if (robot.unit == SPECS.CASTLE) {
-        if (CommonSource.r_sq_between(puppet.me.x, puppet.me.y, robot.x, robot.y)) {
-          inst.parent = robot;
-          inst.parent_signal = robot.signal;
-          puppet.castleTalk(inst.small_packet_for(true, robot.y));
-        }else {
-          // TODO log castle
-        }
-      }else {
-        inst.friend_count++;
-      }
+    while (troop_map[target[1]][target[0]] > 0) {
+      // TODO should prob also send out signal saying kill it if its an enemy
+      resource_map[target[1]][target[0]] = false;
+      target = super.find_nearest_resource([puppet.me.x, puppet.me.y], resource_map);
     }
-    function completion(robot, inst) {}
-    super.process_visible_robots_using(puppet, handle_enemy, handle_friendly, completion);
+    this.path = find_path([puppet.me.x, puppet.me.y], target, terrain_map, troop_map, SPECS.PILGRIM);
   }
 
   find_best_church_spot(x, y, puppet) {
@@ -112,6 +93,7 @@ export class PilgrimSource extends CommonSource{
           let direction2 = unit_ring[j];
           let hazard_col = near_col + direction2[0];
           let hazard_row = near_row + direction2[1];
+          if (!troop_map[hazard_row]) {continue}
           let troop_map_tile = troop_map[hazard_row][hazard_col];
           if (troop_map_tile > 0) {
             let troop = puppet.getRobot(troop_map_tile);
@@ -142,5 +124,26 @@ export class PilgrimSource extends CommonSource{
     }
 
     return bests[Math.floor(Math.random() * bests.length)];
+  }
+
+  initialize_with(puppet) {
+    super.initialize_with(puppet);
+
+    function handle_enemy(robot, inst) {}
+    function handle_friendly(robot, inst) {
+      if (robot.unit == SPECS.CASTLE) {
+        if (CommonSource.r_sq_between(puppet.me.x, puppet.me.y, robot.x, robot.y)) {
+          inst.parent = robot;
+          inst.parent_signal = robot.signal;
+          puppet.castleTalk(CommonSource.small_packet_for(true, robot.y));
+        }else {
+          // TODO log castle
+        }
+      }else {
+        inst.friend_count++;
+      }
+    }
+    function completion(robot, inst) {}
+    super.process_visible_robots_using(puppet, handle_enemy, handle_friendly, completion);
   }
 }

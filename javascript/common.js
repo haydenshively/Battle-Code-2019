@@ -1,3 +1,5 @@
+import {SPECS} from 'battlecode';
+
 export class CommonSource {
   constructor() {
     // Variables to set once (as soon as we receive a puppet instance)
@@ -62,13 +64,20 @@ export class CommonSource {
     completion(visible_robots, this);
   }
 
-  small_packet_for(bool, coord) {return (bool ? 128 + coord : coord);}
-  get_bool_coord_from(small_packet) {
+  static small_packet_for(bool, coord) {return (bool ? 128 + coord : coord);}
+  static get_bool_coord_from(small_packet) {
     if (small_packet >= 128) {return [true, small_packet - 128];}
     else {return [false, small_packet];}
   }
 
   static r_sq_between(x1, y1, x2, y2) {return (x2 - x1)**2 + (y2 - y1)**2;}
+
+  static most_crucial_resource_map(puppet) {return (puppet.karbonite <= puppet.fuel ? puppet.karbonite_map : puppet.fuel_map);}
+
+  static can_build(robot_type, puppet) {
+    let spec = SPECS.UNITS[robot_type];
+    return (puppet.karbonite >= spec.CONSTRUCTION_KARBONITE) && (puppet.fuel >= spec.CONSTRUCTION_FUEL);
+  }
 
   find_nearest_resource(from, map) {
     if (map[from[1]][from[0]]) {return from;}

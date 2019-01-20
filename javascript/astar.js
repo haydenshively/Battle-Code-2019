@@ -41,7 +41,7 @@ function makeArray(w, h, val) {
 }
 
 export function find_path(start, end, map, troop_map, robot_type) {
-  var my_map = makeArray(map[0].length, map.length, true);
+  var already_tested_map = makeArray(map[0].length, map.length, false);
 
   let node_start = new Node(null, start);
   let node_end = new Node(null, end);
@@ -54,7 +54,7 @@ export function find_path(start, end, map, troop_map, robot_type) {
     let tip = branches.pop();
 
     // map[tip.position[1]][tip.position[0]] = false;
-    my_map[tip.position[1]][tip.position[0]] = false;
+    already_tested_map[tip.position[1]][tip.position[0]] = true;
 
     // Yay! Reached destination
     if (tip.equals(end)) {
@@ -81,7 +81,7 @@ export function find_path(start, end, map, troop_map, robot_type) {
         continue
       }
       if (!map[child_position[1]][child_position[0]]) {continue}
-      if (!my_map[child_position[1]][child_position[0]]) {continue}
+      if (already_tested_map[child_position[1]][child_position[0]]) {continue}
       if (troop_map[child_position[1]][child_position[0]] > 0) {continue}
 
       var child = new Node(tip, child_position);
