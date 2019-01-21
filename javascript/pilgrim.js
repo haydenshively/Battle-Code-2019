@@ -37,19 +37,11 @@ export class PilgrimSource extends CommonSource{
     this.observe_with(puppet);
     if (puppet.me.turn == 1) this.initialize_with(puppet);
     // TODO send bucket brigade signal to newcomers
+    // TODO send castle_talk
 
-    if (!this.has_reached_resource && this.travelling_to_resource(puppet)) {
-      puppet.log("Travelling");
-      return this.action;
-    }
-    else if (!this.has_established_depot && this.establishing_depot(puppet)) {
-      puppet.log("Establishing Depot");
-      return this.action;
-    }
-    else if (this.mine(puppet)) {
-      puppet.log("Mining");
-      return this.action;
-    }
+    if (!this.has_reached_resource && this.travelling_to_resource(puppet)) return this.action;
+    else if (!this.has_established_depot && this.establishing_depot(puppet)) return this.action;
+    else if (this.has_established_depot && this.mine(puppet)) return this.action;
   }
 
   travelling_to_resource(puppet) {
@@ -57,21 +49,21 @@ export class PilgrimSource extends CommonSource{
     var resource_map = CommonSource.most_crucial_resource_map(puppet);
     // TODO read data from signal instead of constant [15, 15]
     var destination = (this.parent.signal > -1 ? [15, 15] : super.find_nearest_resource([puppet.me.x, puppet.me.y], resource_map));
+    if ((puppet.me.x == destination[0]) && (puppet.me.y == destination[1])) {
+      this.has_reached_resource = true;
+      return false;
+    }
+
     while (troop_map[destination[1]][destination[0]] > 0) {
       resource_map[destination[1]][destination[0]] = false;
       destination = super.find_nearest_resource([puppet.me.x, puppet.me.y], resource_map);
     }
 
     let path = find_path([puppet.me.x, puppet.me.y], destination, puppet.map, troop_map, puppet.me.unit);
-    if (path.length > 1) {
-      let dx = path[1][0] - puppet.me.x;
-      let dy = path[1][1] - puppet.me.y;
-      this.action = puppet.move(dx, dy);
-      return true;// says to perform this.action once this function is complete
-    }else {
-      this.has_reached_resource = true;
-      return false;
-    }
+    let dx = path[1][0] - puppet.me.x;
+    let dy = path[1][1] - puppet.me.y;
+    this.action = puppet.move(dx, dy);
+    return true;// says to perform this.action once this function is complete
   }
 
   establishing_depot(puppet) {
@@ -105,8 +97,8 @@ export class PilgrimSource extends CommonSource{
       this.has_established_depot = true;
       return true;
     }else {
-      this.action = undefined;
-      return true;
+      puppet.log("In new area; waiting to build church")
+      return false;
     }
   }
 
