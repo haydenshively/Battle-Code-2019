@@ -57,9 +57,9 @@ export class CommonSource {
       treat them differently. In any other case (team # matches ours or
       is null) treat them as family.
       */
-      if (robot.team == !puppet.me.team) {if(handle_enemy(robot, this)) {break}}
+      if (robot.team == !puppet.me.team) {if (handle_enemy(robot, this)) {break}}
       else if (robot.id == puppet.me.id) {continue}
-      else {if(handle_friendly(robot, this)) {break}}
+      else {if (handle_friendly(robot, this)) {break}}
     }
     completion(visible_robots, this);
   }
@@ -70,7 +70,29 @@ export class CommonSource {
     else {return [false, small_packet];}
   }
 
-  static r_sq_between(x1, y1, x2, y2) {return (x2 - x1)**2 + (y2 - y1)**2;}
+  static small_packet2_for(robot_type, enemy_count) {
+    let robot_type_addend;
+    switch (robot_type) {
+      case SPECS.PILGRIM: robot_type_addend = 0; break;
+      case SPECS.CRUSADER: robot_type_addend = 32; break;
+      case SPECS.PROPHET: robot_type_addend = 64; break;
+      case SPECS.PREACHER: robot_type_addend = 96; break;
+      case SPECS.CHURCH: robot_type_addend = 128; break;
+      default: robot_type_addend = 160;
+    }
+    if (enemy_count > 31) enemy_count = 31;
+    return robot_type_addend + enemy_count;
+  }
+  static get_type_count_from(small_packet) {
+    if (small_packet < 32) return [SPECS.PILGRIM, small_packet];
+    if (small_packet < 64) return [SPECS.CRUSADER, small_packet - 32];
+    if (small_packet < 96) return [SPECS.PROPHET, small_packet - 64];
+    if (small_packet < 128) return [SPECS.PREACHER, small_packet - 96];
+    if (small_packet < 160) return [SPECS.CHURCH, small_packet - 128];
+    return [null, small_packet - 160];
+  }
+
+  static r_sq_between(robot1, robot2) {return (robot2.x - robot1.x)**2 + (robot2.y - robot1.y)**2;}
 
   static most_crucial_resource_map(puppet) {return (3*puppet.karbonite <= puppet.fuel ? puppet.karbonite_map : puppet.fuel_map);}
 
@@ -110,5 +132,11 @@ export class CommonSource {
     }
 
     return [x, y];
+  }
+
+  static make_array(w, h, val) {
+    var arr = [];
+    for (var i = 0; i < h; i++) {arr[i] = []; for (var j = 0; j < w; j++) {arr[i][j] = val;}}
+    return arr;
   }
 }

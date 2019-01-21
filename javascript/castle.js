@@ -64,10 +64,7 @@ export class CastleSource extends CommonSource {
 
         // LOG
         puppet.log("CASTLE TURN 2");
-        for (var id in this.our_castles) {
-          let castle = this.our_castles[id];
-          puppet.log("Found ID: " + id + "  X: " + castle.x + "  Y: " + castle.y);
-        }
+        for (var id in this.our_castles) puppet.log("Found ID: " + id + "  X: " + this.our_castles[id].x + "  Y: " + this.our_castles[id].y);
         puppet.log("--------------------------------------------------");
 
         break;
@@ -162,7 +159,7 @@ export class CastleSource extends CommonSource {
           else if (robot.id == puppet.me.id) {continue}
           else {
             if (CommonSource.get_bool_coord_from(robot.castle_talk)[0] && inst.our_castles[robot.id]) {castle3ID = robot.id;}
-            else if (CommonSource.r_sq_between(puppet.me.x, puppet.me.y, robot.x, robot.y) <= 2) {pilgrim1ID = robot.id;}//TODO
+            else if (CommonSource.r_sq_between(puppet.me, robot) <= 2) {pilgrim1ID = robot.id;}//TODO
           }
         }
         puppet.castleTalk(CommonSource.small_packet_for(true, (pilgrim1ID > castle3ID)));

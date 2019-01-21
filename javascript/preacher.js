@@ -41,7 +41,7 @@ export class PreacherSource extends CommonSource {
         continue// TODO
       }
       // if robot is parent //TODO what if 2 castles are really close together
-      else if (CommonSource.r_sq_between(puppet.me.x, puppet.me.y, robot.x, robot.y) <= 2) {
+      else if (CommonSource.r_sq_between(puppet.me, robot) <= 2) {
         this.parent = new Castle(robot.id, null, robot.x, robot.y);
         puppet.castleTalk(super.small_packet_for(true, robot.y));
       }

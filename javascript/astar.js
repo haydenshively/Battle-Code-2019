@@ -29,19 +29,10 @@ class Node {
 
 function node_comparator(a, b) {return a.f < b.f;}
 
-function makeArray(w, h, val) {
-  var arr = [];
-  for (var i = 0; i < h; i++) {
-    arr[i] = [];
-    for (var j = 0; j < w; j++) {
-        arr[i][j] = val;
-    }
-  }
-  return arr;
-}
+
 
 export function find_path(start, end, map, troop_map, robot_type) {
-  var already_tested_map = makeArray(map[0].length, map.length, false);
+  var already_tested_map = CommonSource.make_array(map[0].length, map.length, false);
 
   let node_start = new Node(null, start);
   let node_end = new Node(null, end);

@@ -16,8 +16,8 @@ export class CrusaderSource extends CommonSource {
     super();
     // Variables to set once (as soon as we receive a puppet instance)
     this.parent = null;
-    // Are all the above set?
-    this.initialized = false;
+    this.parent_signal = -1;
+    this.friend_count = 0;
 
     this.path = null;
   }
@@ -34,46 +34,26 @@ export class CrusaderSource extends CommonSource {
   */
   get_action_for(puppet) {
     if (!this.initialized) {this.initialize_with(puppet);}
-    // if (this.step == 0) {
-    //   this.path = find_path([puppet.me.x, puppet.me.y], [15, 15], puppet.map);
-    //   this.step++;
-    // }else {
-    //   if ((puppet.me.x == this.path[this.step][0]) && (puppet.me.y == this.path[this.step][1]) && (this.step + 1 < this.path.length)) {
-    //     this.step++;
-    //   }
-    //   puppet.log(this.path[this.step]);
-    //   let dx = this.path[this.step][0] - puppet.me.x;
-    //   let dy = this.path[this.step][1] - puppet.me.y;
-    //   return puppet.move(dx, dy);
-    // }
   }
 
   initialize_with(puppet) {
     super.initialize_with(puppet);
 
-    // includes everything in 100 r^2
-    let visible_robots = puppet.getVisibleRobots();
-    // iterate through all results
-    for (var i = visible_robots.length - 1; i >= 0; i--) {
-      let robot = visible_robots[i];
-      if (robot.team != puppet.me.team) {
-        continue// TODO
-      }
-      // if robot is self
-      else if (robot.id == puppet.me.id) {
-        continue// TODO
-      }
-      // if robot is parent //TODO what if 2 castles are really close together
-      else if (CommonSource.r_sq_between(puppet.me.x, puppet.me.y, robot.x, robot.y) <= 2) {
-        this.parent = new Castle(robot.id, null, robot.x, robot.y);
-        puppet.castleTalk(CommonSource.small_packet_for(false, robot.y));
-      }
-      // if robot is something else on our team
-      else {
-        continue// TODO
+    function handle_enemy(robot, inst) {}
+    function handle_friendly(robot, inst) {
+      if (robot.unit == SPECS.CASTLE) {
+        if (CommonSource.r_sq_between(puppet.me, robot) <= 2) {
+          inst.parent = robot;
+          inst.parent_signal = robot.signal;
+          puppet.castleTalk(CommonSource.small_packet_for(false, robot.y));
+        }else {
+          // TODO log castle
+        }
+      }else {
+        inst.friend_count++;
       }
     }
-
-    this.initialized = true;
+    function completion(robot, inst) {}
+    super.process_visible_robots_using(puppet, handle_enemy, handle_friendly, completion);
   }
 }
