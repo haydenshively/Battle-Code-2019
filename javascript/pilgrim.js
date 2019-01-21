@@ -18,7 +18,6 @@ export class PilgrimSource extends CommonSource{
 
     this.depot_direction = [];
     this.brigade_size = 1;
-    this.occupied_resource_map = false;
 
     this.action = null;
   }
@@ -54,15 +53,16 @@ export class PilgrimSource extends CommonSource{
   }
 
   travelling_to_resource(puppet) {
+    let troop_map = puppet.getVisibleRobotMap();
     var resource_map = CommonSource.most_crucial_resource_map(puppet);
     // TODO read data from signal instead of constant [15, 15]
     var destination = (this.parent.signal > -1 ? [15, 15] : super.find_nearest_resource([puppet.me.x, puppet.me.y], resource_map));
-    while (this.occupied_resource_map[destination[1]][destination[0]]) {
+    while (troop_map[destination[1]][destination[0]] > 0) {
       resource_map[destination[1]][destination[0]] = false;
       destination = super.find_nearest_resource([puppet.me.x, puppet.me.y], resource_map);
     }
 
-    let path = find_path([puppet.me.x, puppet.me.y], destination, puppet.map, puppet.getVisibleRobotMap(), puppet.me.unit);
+    let path = find_path([puppet.me.x, puppet.me.y], destination, puppet.map, troop_map, puppet.me.unit);
     if (path.length > 1) {
       let dx = path[1][0] - puppet.me.x;
       let dy = path[1][1] - puppet.me.y;
@@ -172,7 +172,7 @@ export class PilgrimSource extends CommonSource{
   }
 
   observe_with(puppet) {
-    function handle_enemy(robot, inst) {if (robot.unit == SPECS.PILGRIM) inst.occupied_resource_map[robot.y][robot.x] = 2;}
+    function handle_enemy(robot, inst) {}
     function handle_friendly(robot, inst) {
       if (inst.nearest_friendly[robot.unit] == false) inst.nearest_friendly[robot.unit] = robot;
       else {
@@ -183,8 +183,6 @@ export class PilgrimSource extends CommonSource{
           inst.nearest_friendly[robot.unit] = robot;
         }
       }
-
-      if (inst.occupied_resource_map && (robot.unit == SPECS.PILGRIM)) inst.occupied_resource_map[robot.y][robot.x] = 1;
     }
     function completion(robot, inst) {}
     super.process_visible_robots_using(puppet, handle_enemy, handle_friendly, completion);
@@ -197,7 +195,5 @@ export class PilgrimSource extends CommonSource{
     let nearest_church = this.nearest_friendly[SPECS.CHURCH];
     if (nearest_church && (CommonSource.r_sq_between(puppet.me, nearest_church) < CommonSource.r_sq_between(puppet.me, this.parent))) this.parent = nearest_church;
     puppet.castleTalk(CommonSource.small_packet_for(true, this.parent.y));
-
-    this.occupied_resource_map = CommonSource.make_array(puppet.map[0].length, puppet.map.length, false);
   }
 }
