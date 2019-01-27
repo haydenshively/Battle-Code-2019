@@ -171,7 +171,7 @@ export class PilgrimSource extends CommonSource{
         let nearest = inst.nearest_friendly[robot.unit];
         let distance_old = CommonSource.r_sq_between(puppet.me, nearest);
         let distance_new = CommonSource.r_sq_between(puppet.me, robot);
-        if ((distance_new < distance_old) || (distance_new == distance_old) && (robot.signal > nearest.signal)) {
+        if ((distance_new < distance_old) || ((distance_new == distance_old) && (robot.signal > nearest.signal))) {
           inst.nearest_friendly[robot.unit] = robot;
         }
       }

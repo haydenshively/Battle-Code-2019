@@ -101,6 +101,12 @@ export class CommonSource {
     return (puppet.karbonite >= spec.CONSTRUCTION_KARBONITE) && (puppet.fuel >= spec.CONSTRUCTION_FUEL);
   }
 
+  static can_attack(robot_type, r, puppet) {
+    let spec = SPECS.UNITS[robot_type];
+    let range = spec['ATTACK_RADIUS'];
+    return (puppet.fuel >= spec.ATTACK_FUEL_COST) && (r >= range[0]) && (r <= range[1])
+  }
+
   find_nearest_resource(from, map) {
     if (map[from[1]][from[0]]) {return from;}
 
