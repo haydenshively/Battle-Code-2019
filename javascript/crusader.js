@@ -2,24 +2,14 @@ import {SPECS} from 'battlecode';
 import {CommonSource} from './common.js';
 import {find_path} from './astar.js';
 
-class Castle {
-  constructor(id = null, id_bool = null, x = null, y = null) {
-    this.id = id;
-    this.id_bool = id_bool;
-    this.x = x;
-    this.y = y;
-  }
-}
+const unit_ring = [[0, -1], [0, 1], [-1, 0], [1, 0], [-1, -1], [-1, 1], [1, -1], [1, 1]];
+const unit_ring_length = 8;
 
 export class CrusaderSource extends CommonSource {
   constructor() {
     super();
-    // Variables to set once (as soon as we receive a puppet instance)
+    this.nearest_friendly = [false, false, false, false, false, false];
     this.parent = null;
-    this.parent_signal = -1;
-    this.friend_count = 0;
-
-    this.path = null;
   }
 
   /*
@@ -33,27 +23,33 @@ export class CrusaderSource extends CommonSource {
   return puppet.castleTalk(value);
   */
   get_action_for(puppet) {
-    if (!this.initialized) {this.initialize_with(puppet);}
+    this.observe_with(puppet);
+    if (puppet.me.turn == 1) this.initialize_with(puppet);
+  }
+
+  observe_with(puppet) {
+    function handle_enemy(robot, inst) {}
+    function handle_friendly(robot, inst) {
+      if (inst.nearest_friendly[robot.unit] == false) inst.nearest_friendly[robot.unit] = robot;
+      else {
+        let nearest = inst.nearest_friendly[robot.unit];
+        let distance_old = CommonSource.r_sq_between(puppet.me, nearest);
+        let distance_new = CommonSource.r_sq_between(puppet.me, robot);
+        if ((distance_new < distance_old) || (distance_new == distance_old) && (robot.signal > nearest.signal)) {
+          inst.nearest_friendly[robot.unit] = robot;
+        }
+      }
+    }
+    function completion(robot, inst) {}
+    super.process_visible_robots_using(puppet, handle_enemy, handle_friendly, completion);
   }
 
   initialize_with(puppet) {
     super.initialize_with(puppet);
 
-    function handle_enemy(robot, inst) {}
-    function handle_friendly(robot, inst) {
-      if (robot.unit == SPECS.CASTLE) {
-        if (CommonSource.r_sq_between(puppet.me, robot) <= 2) {
-          inst.parent = robot;
-          inst.parent_signal = robot.signal;
-          puppet.castleTalk(CommonSource.small_packet_for(false, robot.y));
-        }else {
-          // TODO log castle
-        }
-      }else {
-        inst.friend_count++;
-      }
-    }
-    function completion(robot, inst) {}
-    super.process_visible_robots_using(puppet, handle_enemy, handle_friendly, completion);
+    this.parent = this.nearest_friendly[SPECS.CASTLE];
+    let nearest_church = this.nearest_friendly[SPECS.CHURCH];
+    if (nearest_church && (CommonSource.r_sq_between(puppet.me, nearest_church) < CommonSource.r_sq_between(puppet.me, this.parent))) this.parent = nearest_church;
+    puppet.castleTalk(CommonSource.small_packet_for(false, this.parent.y));
   }
 }

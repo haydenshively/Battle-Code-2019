@@ -310,9 +310,9 @@ class CommonSource {
       treat them differently. In any other case (team # matches ours or
       is null) treat them as family.
       */
-      if (robot.team == !puppet.me.team) {if(handle_enemy(robot, this)) {break}}
+      if (robot.team == !puppet.me.team) {if (handle_enemy(robot, this)) {break}}
       else if (robot.id == puppet.me.id) {continue}
-      else {if(handle_friendly(robot, this)) {break}}
+      else {if (handle_friendly(robot, this)) {break}}
     }
     completion(visible_robots, this);
   }
@@ -323,9 +323,31 @@ class CommonSource {
     else {return [false, small_packet];}
   }
 
-  static r_sq_between(x1, y1, x2, y2) {return (x2 - x1)**2 + (y2 - y1)**2;}
+  static small_packet2_for(robot_type, enemy_count) {
+    let robot_type_addend;
+    switch (robot_type) {
+      case SPECS.PILGRIM: robot_type_addend = 0; break;
+      case SPECS.CRUSADER: robot_type_addend = 32; break;
+      case SPECS.PROPHET: robot_type_addend = 64; break;
+      case SPECS.PREACHER: robot_type_addend = 96; break;
+      case SPECS.CHURCH: robot_type_addend = 128; break;
+      default: robot_type_addend = 160;
+    }
+    if (enemy_count > 31) enemy_count = 31;
+    return robot_type_addend + enemy_count;
+  }
+  static get_type_count_from(small_packet) {
+    if (small_packet < 32) return [SPECS.PILGRIM, small_packet];
+    if (small_packet < 64) return [SPECS.CRUSADER, small_packet - 32];
+    if (small_packet < 96) return [SPECS.PROPHET, small_packet - 64];
+    if (small_packet < 128) return [SPECS.PREACHER, small_packet - 96];
+    if (small_packet < 160) return [SPECS.CHURCH, small_packet - 128];
+    return [null, small_packet - 160];
+  }
 
-  static most_crucial_resource_map(puppet) {return (3*puppet.karbonite <= puppet.fuel ? puppet.karbonite_map : puppet.fuel_map);}
+  static r_sq_between(robot1, robot2) {return (robot2.x - robot1.x)**2 + (robot2.y - robot1.y)**2;}
+
+  static most_crucial_resource_map(puppet) {return (5*puppet.karbonite <= puppet.fuel) ? puppet.karbonite_map : puppet.fuel_map;}
 
   static can_build(robot_type, puppet) {
     let spec = SPECS.UNITS[robot_type];
@@ -363,6 +385,12 @@ class CommonSource {
     }
 
     return [x, y];
+  }
+
+  static make_array(w, h, val) {
+    var arr = [];
+    for (var i = 0; i < h; i++) {arr[i] = []; for (var j = 0; j < w; j++) {arr[i][j] = val;}}
+    return arr;
   }
 }
 
@@ -429,10 +457,7 @@ class CastleSource extends CommonSource {
 
         // LOG
         puppet.log("CASTLE TURN 2");
-        for (var id in this.our_castles) {
-          let castle = this.our_castles[id];
-          puppet.log("Found ID: " + id + "  X: " + castle.x + "  Y: " + castle.y);
-        }
+        for (var id in this.our_castles) puppet.log("Found ID: " + id + "  X: " + this.our_castles[id].x + "  Y: " + this.our_castles[id].y);
         puppet.log("--------------------------------------------------");
 
         break;
@@ -527,7 +552,7 @@ class CastleSource extends CommonSource {
           else if (robot.id == puppet.me.id) {continue}
           else {
             if (CommonSource.get_bool_coord_from(robot.castle_talk)[0] && inst.our_castles[robot.id]) {castle3ID = robot.id;}
-            else if (CommonSource.r_sq_between(puppet.me.x, puppet.me.y, robot.x, robot.y) <= 2) {pilgrim1ID = robot.id;}//TODO
+            else if (CommonSource.r_sq_between(puppet.me, robot) <= 2) {pilgrim1ID = robot.id;}//TODO
           }
         }
         puppet.castleTalk(CommonSource.small_packet_for(true, (pilgrim1ID > castle3ID)));
@@ -665,19 +690,10 @@ class Node {
 
 function node_comparator(a, b) {return a.f < b.f;}
 
-function makeArray(w, h, val) {
-  var arr = [];
-  for (var i = 0; i < h; i++) {
-    arr[i] = [];
-    for (var j = 0; j < w; j++) {
-        arr[i][j] = val;
-    }
-  }
-  return arr;
-}
+
 
 function find_path(start, end, map, troop_map, robot_type) {
-  var already_tested_map = makeArray(map[0].length, map.length, false);
+  var already_tested_map = CommonSource.make_array(map[0].length, map.length, false);
 
   let node_start = new Node(null, start);
 
@@ -749,22 +765,13 @@ class ChurchSource {
   }
 }
 
-class Castle$2 {
-  constructor(id = null, id_bool = null, x = null, y = null) {
-    this.id = id;
-    this.id_bool = id_bool;
-    this.x = x;
-    this.y = y;
-  }
-}
-
 class CrusaderSource extends CommonSource {
   constructor() {
     super();
     // Variables to set once (as soon as we receive a puppet instance)
     this.parent = null;
-    // Are all the above set?
-    this.initialized = false;
+    this.parent_signal = -1;
+    this.friend_count = 0;
 
     this.path = null;
   }
@@ -781,47 +788,25 @@ class CrusaderSource extends CommonSource {
   */
   get_action_for(puppet) {
     if (!this.initialized) {this.initialize_with(puppet);}
-    // if (this.step == 0) {
-    //   this.path = find_path([puppet.me.x, puppet.me.y], [15, 15], puppet.map);
-    //   this.step++;
-    // }else {
-    //   if ((puppet.me.x == this.path[this.step][0]) && (puppet.me.y == this.path[this.step][1]) && (this.step + 1 < this.path.length)) {
-    //     this.step++;
-    //   }
-    //   puppet.log(this.path[this.step]);
-    //   let dx = this.path[this.step][0] - puppet.me.x;
-    //   let dy = this.path[this.step][1] - puppet.me.y;
-    //   return puppet.move(dx, dy);
-    // }
   }
 
   initialize_with(puppet) {
     super.initialize_with(puppet);
 
-    // includes everything in 100 r^2
-    let visible_robots = puppet.getVisibleRobots();
-    // iterate through all results
-    for (var i = visible_robots.length - 1; i >= 0; i--) {
-      let robot = visible_robots[i];
-      if (robot.team != puppet.me.team) {
-        continue// TODO
-      }
-      // if robot is self
-      else if (robot.id == puppet.me.id) {
-        continue// TODO
-      }
-      // if robot is parent //TODO what if 2 castles are really close together
-      else if (CommonSource.r_sq_between(puppet.me.x, puppet.me.y, robot.x, robot.y) <= 2) {
-        this.parent = new Castle$2(robot.id, null, robot.x, robot.y);
-        puppet.castleTalk(CommonSource.small_packet_for(false, robot.y));
-      }
-      // if robot is something else on our team
-      else {
-        continue// TODO
+    function handle_enemy(robot, inst) {}
+    function handle_friendly(robot, inst) {
+      if (robot.unit == SPECS.CASTLE) {
+        if (CommonSource.r_sq_between(puppet.me, robot) <= 2) {
+          inst.parent = robot;
+          inst.parent_signal = robot.signal;
+          puppet.castleTalk(CommonSource.small_packet_for(false, robot.y));
+        }
+      }else {
+        inst.friend_count++;
       }
     }
-
-    this.initialized = true;
+    function completion(robot, inst) {}
+    super.process_visible_robots_using(puppet, handle_enemy, handle_friendly, completion);
   }
 }
 
@@ -831,16 +816,18 @@ const unit_ring_length$1 = 8;
 class PilgrimSource extends CommonSource{
   constructor() {
     super();
-    // Variables to set once (as soon as we receive a puppet instance)
+
+    this.nearest_friendly = [false, false, false, false, false, false];
     this.parent = null;
-    this.parent_signal = -1;
-    this.friend_count = 0;
 
-    this.path = [];
-
-    this.has_church = false;
-    this.church_location = [];
+    this.has_reached_resource = false;
+    this.has_established_depot = false;
     this.should_mine = false;
+
+    this.depot_direction = [];
+    this.brigade_size = 1;
+
+    this.action = null;
   }
 
   /*
@@ -855,80 +842,84 @@ class PilgrimSource extends CommonSource{
   return puppet.castleTalk(value);
   */
   get_action_for(puppet) {
+    this.observe_with(puppet);
     if (puppet.me.turn == 1) this.initialize_with(puppet);
-    // still preparing to start mining and refining
-    if (!this.has_church) {
-      this.update_path(puppet, puppet.map, puppet.getVisibleRobotMap(), CommonSource.most_crucial_resource_map(puppet));
-      // travel
-      if (this.path.length > 1) {
-        let dx = this.path[1][0] - puppet.me.x;
-        let dy = this.path[1][1] - puppet.me.y;
-        this.path.shift();
-        return puppet.move(dx, dy);
-      }
-      else if (this.searchForChurchAround(puppet.me.x, puppet.me.y, puppet)) {
-        this.has_church = true;
-        // LOG
-        puppet.log("PILGRIM FOUND CHURCH");
-        puppet.log("X: " + puppet.me.x + "  Y: " + puppet.me.y);
-        puppet.log("Exists on: " + this.church_location);
-        puppet.log("--------------------------------------------------");
-      }
-      // build church
-      else if (CommonSource.can_build(SPECS.CHURCH, puppet)) {
-        this.has_church = true;
-        this.find_best_church_spot(puppet.me.x, puppet.me.y, puppet);
-        // LOG
-        puppet.log("PILGRIM BUILDING CHURCH");
-        puppet.log("X: " + puppet.me.x + "  Y: " + puppet.me.y);
-        puppet.log("Placing on: " + this.church_location);
-        puppet.log("--------------------------------------------------");
-        return puppet.buildUnit(SPECS.CHURCH, this.church_location[0], this.church_location[1]);
-      }
-    }
-    // ready to mine and refine
-    else {
-      this.should_mine = !this.should_mine;
-      if (this.should_mine) return puppet.mine();
-      else return puppet.give(this.church_location[0], this.church_location[1], puppet.me.karbonite, puppet.me.fuel);
-    }
+    // TODO send bucket brigade signal to newcomers
+    // TODO send castle_talk
+
+    if (!this.has_reached_resource && this.travelling_to_resource(puppet)) return this.action;
+    else if (!this.has_established_depot && this.establishing_depot(puppet)) return this.action;
+    else if (this.has_established_depot && this.mine(puppet)) return this.action;
   }
 
-
-  // TODO read data from signal instead of constant [15, 15]
-  update_path(puppet, terrain_map, troop_map, resource_map) {
-    var target = (this.parent_signal > -1 ? [15, 15] : super.find_nearest_resource([puppet.me.x, puppet.me.y], resource_map));
-    if ((puppet.me.x == target[0]) && (puppet.me.y == target[1])) {this.path = []; return}
-
-    while (troop_map[target[1]][target[0]] > 0) {
-      // TODO should prob also send out signal saying kill it if its an enemy
-      resource_map[target[1]][target[0]] = false;
-      target = super.find_nearest_resource([puppet.me.x, puppet.me.y], resource_map);
-    }
-    this.path = find_path([puppet.me.x, puppet.me.y], target, terrain_map, troop_map, SPECS.PILGRIM);
-  }
-
-  searchForChurchAround(x, y, puppet) {
+  travelling_to_resource(puppet) {
     let troop_map = puppet.getVisibleRobotMap();
-
-    for (var i = unit_ring_length$1 - 1; i >= 0; i--) {
-      let direction = unit_ring$1[i];
-      let col = x + direction[0];
-      let row = y + direction[1];
-      if (puppet.map[row] && (troop_map[row][col] > 0)) {
-        let troop = puppet.getRobot(troop_map[row][col]);
-        if ((troop.team == puppet.me.team) && (troop.unit == SPECS.CHURCH)) {
-          this.church_location = direction;
-          return true;
-        }
-      }
+    var resource_map = CommonSource.most_crucial_resource_map(puppet);
+    // TODO read data from signal instead of constant [15, 15]
+    var destination = (this.parent.signal > -1 ? [15, 15] : super.find_nearest_resource([puppet.me.x, puppet.me.y], resource_map));
+    if ((puppet.me.x == destination[0]) && (puppet.me.y == destination[1])) {
+      this.has_reached_resource = true;
+      return false;
     }
 
-    return false;
+    while (troop_map[destination[1]][destination[0]] > 0) {
+      resource_map[destination[1]][destination[0]] = false;
+      destination = super.find_nearest_resource([puppet.me.x, puppet.me.y], resource_map);
+    }
+
+    let path = find_path([puppet.me.x, puppet.me.y], destination, puppet.map, troop_map, puppet.me.unit);
+    let dx = path[1][0] - puppet.me.x;
+    let dy = path[1][1] - puppet.me.y;
+    this.action = puppet.move(dx, dy);
+    return true;// says to perform this.action once this function is complete
   }
 
-  // TODO combine with searchForChurchAround
-  find_best_church_spot(x, y, puppet) {
+  establishing_depot(puppet) {
+    let nearest_castle = this.nearest_friendly[SPECS.CASTLE];
+    let nearest_church = this.nearest_friendly[SPECS.CHURCH];
+    let nearest_pilgrim = this.nearest_friendly[SPECS.PILGRIM];
+
+    if ((nearest_castle != null) && (CommonSource.r_sq_between(puppet.me, nearest_castle) <= 2)) {
+      puppet.log("Adjacent to castle; exploiting");
+      this.depot_direction = [nearest_castle.x - puppet.me.x, nearest_castle.y - puppet.me.y];
+      this.has_established_depot = true;
+      return false;
+    }else if ((nearest_church != null) && (CommonSource.r_sq_between(puppet.me, nearest_church) <= 2)) {
+      puppet.log("Adjacent to church; exploiting");
+      this.depot_direction = [nearest_church.x - puppet.me.x, nearest_church.y - puppet.me.y];
+      this.has_established_depot = true;
+      return false;
+    }else if ((nearest_pilgrim != null) && (CommonSource.r_sq_between(puppet.me, nearest_pilgrim) <= 2)) {
+      // if nearest pilgrim is part of brigade
+      if ((nearest_pilgrim.signal > -1) && (nearest_pilgrim.signal < 10)) {// 10 represents resource_capacity/resource_per_call_to_mine
+        puppet.log("Adjacent to bucket brigade; joining");
+        this.brigade_size = nearest_pilgrim.signal + 1;
+        this.depot_direction = [nearest_pilgrim.x - puppet.me.x, nearest_pilgrim.y - puppet.me.y];
+        this.has_established_depot = true;
+        return false;
+      }
+    }else if (CommonSource.can_build(SPECS.CHURCH, puppet)) {
+      puppet.log("In new area; building church");
+      this.find_best_church_spot(puppet);
+      this.action = puppet.buildUnit(SPECS.CHURCH, this.depot_direction[0], this.depot_direction[1]);
+      this.has_established_depot = true;
+      return true;
+    }else {
+      puppet.log("In new area; waiting to build church");
+      return false;
+    }
+  }
+
+  mine(puppet) {
+    this.should_mine = !this.should_mine;
+    if (this.should_mine) this.action = puppet.mine();
+    else this.action = puppet.give(this.depot_direction[0], this.depot_direction[1], puppet.me.karbonite, puppet.me.fuel);
+    return true;// says to perform this.action once this function is complete
+  }
+
+  find_best_church_spot(puppet) {
+    let x = puppet.me.x;
+    let y = puppet.me.y;
     let troop_map = puppet.getVisibleRobotMap();
 
     var best_score = false;
@@ -977,26 +968,33 @@ class PilgrimSource extends CommonSource{
       }
     }
 
-    this.church_location = bests[Math.floor(Math.random() * bests.length)];
+    this.depot_direction = bests[Math.floor(Math.random() * bests.length)];
+  }
+
+  observe_with(puppet) {
+    function handle_enemy(robot, inst) {}
+    function handle_friendly(robot, inst) {
+      if (inst.nearest_friendly[robot.unit] == false) inst.nearest_friendly[robot.unit] = robot;
+      else {
+        let nearest = inst.nearest_friendly[robot.unit];
+        let distance_old = CommonSource.r_sq_between(puppet.me, nearest);
+        let distance_new = CommonSource.r_sq_between(puppet.me, robot);
+        if ((distance_new < distance_old) || (distance_new == distance_old) && (robot.signal > nearest.signal)) {
+          inst.nearest_friendly[robot.unit] = robot;
+        }
+      }
+    }
+    function completion(robot, inst) {}
+    super.process_visible_robots_using(puppet, handle_enemy, handle_friendly, completion);
   }
 
   initialize_with(puppet) {
     super.initialize_with(puppet);
 
-    function handle_enemy(robot, inst) {}
-    function handle_friendly(robot, inst) {
-      if (robot.unit == SPECS.CASTLE) {
-        if (CommonSource.r_sq_between(puppet.me.x, puppet.me.y, robot.x, robot.y)) {
-          inst.parent = robot;
-          inst.parent_signal = robot.signal;
-          puppet.castleTalk(CommonSource.small_packet_for(true, robot.y));
-        }
-      }else {
-        inst.friend_count++;
-      }
-    }
-    function completion(robot, inst) {}
-    super.process_visible_robots_using(puppet, handle_enemy, handle_friendly, completion);
+    this.parent = this.nearest_friendly[SPECS.CASTLE];
+    let nearest_church = this.nearest_friendly[SPECS.CHURCH];
+    if (nearest_church && (CommonSource.r_sq_between(puppet.me, nearest_church) < CommonSource.r_sq_between(puppet.me, this.parent))) this.parent = nearest_church;
+    puppet.castleTalk(CommonSource.small_packet_for(true, this.parent.y));
   }
 }
 
@@ -1039,7 +1037,7 @@ class PreacherSource extends CommonSource {
         continue// TODO
       }
       // if robot is parent //TODO what if 2 castles are really close together
-      else if (CommonSource.r_sq_between(puppet.me.x, puppet.me.y, robot.x, robot.y) <= 2) {
+      else if (CommonSource.r_sq_between(puppet.me, robot) <= 2) {
         this.parent = new Castle(robot.id, null, robot.x, robot.y);
         puppet.castleTalk(super.small_packet_for(true, robot.y));
       }
@@ -1092,7 +1090,7 @@ class ProphetSource extends CommonSource {
         continue// TODO
       }
       // if robot is parent //TODO what if 2 castles are really close together
-      else if (CommonSource.r_sq_between(puppet.me.x, puppet.me.y, robot.x, robot.y) <= 2) {
+      else if (CommonSource.r_sq_between(puppet.me, robot) <= 2) {
         this.parent = new Castle(robot.id, null, robot.x, robot.y);
         puppet.castleTalk(super.small_packet_for(true, robot.y));
       }
