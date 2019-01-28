@@ -85,6 +85,7 @@ export class ProphetSource extends CommonSource {
   }
 
   observe_with(puppet) {
+    this.nearest_enemy = false;
     function handle_enemy(robot, inst) {
       let distance_new = CommonSource.r_sq_between(puppet.me, robot);
       if (CommonSource.can_attack(puppet.me.unit, distance_new, puppet)) {

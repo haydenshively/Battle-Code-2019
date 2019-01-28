@@ -81,7 +81,7 @@ export class CastleSource extends CommonSource {
             let build_type = this.build_order.shift();
             return puppet.buildUnit(build_type, direction[0], direction[1]);
           }else {
-            let choices = [SPECS.PILGRIM, SPECS.CRUSADER, SPECS.PROPHET, SPECS.PREACHER];
+            let choices = [SPECS.PILGRIM, SPECS.PILGRIM, SPECS.CRUSADER, SPECS.CRUSADER, SPECS.PROPHET, SPECS.PREACHER];
             return puppet.buildUnit(choices[Math.floor(Math.random()*choices.length)], direction[0], direction[1]);
           }
         }

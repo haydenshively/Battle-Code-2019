@@ -88,6 +88,7 @@ export class CrusaderSource extends CommonSource {
   }
 
   observe_with(puppet) {
+    this.nearest_enemy = false;
     function handle_enemy(robot, inst) {
       if (inst.nearest_enemy == false) inst.nearest_enemy = robot;
       else {
