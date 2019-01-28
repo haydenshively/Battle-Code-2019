@@ -426,6 +426,10 @@ class CastleSource extends CommonSource {
     // Variables to set once (after more information becomes available)
     this.other_units = {};
     this.their_castles = {};
+
+    this.build_order = [SPECS.PILGRIM, SPECS.CRUSADER, SPECS.CRUSADER, SPECS.PILGRIM, SPECS.PILGRIM,
+                        SPECS.CRUSADER, SPECS.PILGRIM, SPECS.CRUSADER, SPECS.PILGRIM, SPECS.CRUSADER,
+                        SPECS.CRUSADER, SPECS.CRUSADER, SPECS.CRUSADER];
   }
 
   /*
@@ -439,6 +443,7 @@ class CastleSource extends CommonSource {
   return puppet.castleTalk(value);
   */
   get_action_for(puppet) {
+    this.find_buildable_tiles_around(puppet.me.x, puppet.me.y, puppet.map, puppet.getVisibleRobotMap());
     let direction;
 
     switch (puppet.me.turn) {
@@ -471,19 +476,19 @@ class CastleSource extends CommonSource {
       default:
         direction = this.buildable_tiles[Math.floor(Math.random() * this.buildable_tiles.length)];
         if ((puppet.fuel >= 350) && (puppet.karbonite >= 80)) {
-          if (puppet.me.turn%4 == 0) {
-            return puppet.buildUnit(SPECS.PILGRIM, direction[0], direction[1]);
+          if (this.build_order.length > 0) {
+            let build_type = this.build_order.shift();
+            return puppet.buildUnit(build_type, direction[0], direction[1]);
           }else {
-            return puppet.buildUnit(SPECS.CRUSADER, direction[0], direction[1]);
+            let choices = [SPECS.PILGRIM, SPECS.PILGRIM, SPECS.CRUSADER, SPECS.CRUSADER, SPECS.PROPHET, SPECS.PREACHER];
+            return puppet.buildUnit(choices[Math.floor(Math.random()*choices.length)], direction[0], direction[1]);
           }
-
         }
     }
   }
 
   init_first_turn(puppet) {
     super.initialize_with(puppet);
-    this.find_buildable_tiles_around(puppet.me.x, puppet.me.y, puppet.map);
     // start at 0, will basically become castle # (1, 2, or 3)
     this.place_in_turn_queue = 1;
 
@@ -592,12 +597,13 @@ class CastleSource extends CommonSource {
     }
   }
 
-  find_buildable_tiles_around(x, y, map) {
+  find_buildable_tiles_around(x, y, map, troop_map) {
+    this.buildable_tiles = [];
     for (var i = unit_ring_length - 1; i >= 0; i--) {
       let direction = unit_ring[i];
       let col = x + direction[0];
       let row = y + direction[1];
-      if (map[row][col]) {this.buildable_tiles.push(direction);}
+      if (map[row][col] && (troop_map[row][col] == 0)) {this.buildable_tiles.push(direction);}
     }
   }
 
@@ -778,9 +784,6 @@ class ChurchSource {
   }
 }
 
-const unit_ring$1 = [[0, -1], [0, 1], [-1, 0], [1, 0], [-1, -1], [-1, 1], [1, -1], [1, 1]];
-const unit_ring_length$1 = 8;
-
 class CrusaderSource extends CommonSource {
   constructor() {
     super();
@@ -789,14 +792,7 @@ class CrusaderSource extends CommonSource {
     this.nearest_enemy = false;
 
     this.action = null;
-
-    this.initial_direction = null;
-    this.previous_direction = null;
-    this.new_direction = null;
-    this.steps_away_from_parent = 0;
-    this.steps_away_from_section = 2;
-    this.has_reached_section = false;
-    this.turning_point = null;
+    this.destination = null;
   }
 
   /*
@@ -814,7 +810,7 @@ class CrusaderSource extends CommonSource {
     if (puppet.me.turn == 1) this.initialize_with(puppet);
 
     if (this.attacking(puppet)) return this.action;
-    else if (this.travelling(puppet)) return this.action;
+    else if (this.travelling_to_even_tile(puppet)) return this.action;
   }
 
   attacking(puppet) {
@@ -832,107 +828,46 @@ class CrusaderSource extends CommonSource {
     return false;
   }
 
-  travelling(puppet) {
-    var troop_map = puppet.getVisibleRobotMap();
-    let fuel_map = puppet.fuel_map;
-    let karbonite_map = puppet.karbonite_map;
-    let terrain_map = puppet.map;
-    troop_map[puppet.me.y][puppet.me.x] = -1;
+  travelling_to_even_tile(puppet) {
+    let map_troop = puppet.getVisibleRobotMap();
+    map_troop[puppet.me.y][puppet.me.x] = 0;
+    let map_terrain = puppet.map;
+    let map_karb = puppet.karbonite_map;
+    let map_fuel = puppet.fuel_map;
 
-    var destination = [this.parent.x + this.initial_direction[0]*this.steps_away_from_parent, this.parent.y + this.initial_direction[1]*this.steps_away_from_parent];
-    if (
-      (destination[0] > terrain_map[0].length - 1) ||
-      (destination[0] < 0) ||
-      (destination[1] > terrain_map.length - 1) ||
-      (destination[1] < 0)
-    ) {
-      direction = unit_ring$1[Math.floor(Math.random() * unit_ring_length$1)];
-      let dx = path[1][0] - puppet.me.x;
-      let dy = path[1][1] - puppet.me.y;
-      this.action = puppet.move(dx, dy);
-      return true;
-    }
-    while ((troop_map[destination[1]][destination[0]] > 0) || !terrain_map[destination[1]][destination[0]] || fuel_map[destination[1]][destination[0]] || karbonite_map[destination[1]][destination[0]]) {
-      this.steps_away_from_parent += 2;
-      destination = [this.parent.x + this.initial_direction[0]*this.steps_away_from_parent, this.parent.y + this.initial_direction[1]*this.steps_away_from_parent];
-      if (
-        (destination[0] > terrain_map[0].length - 1) ||
-        (destination[0] < 0) ||
-        (destination[1] > terrain_map.length - 1) ||
-        (destination[1] < 0)
-      ) {
-        direction = unit_ring$1[Math.floor(Math.random() * unit_ring_length$1)];
-        let dx = path[1][0] - puppet.me.x;
-        let dy = path[1][1] - puppet.me.y;
-        this.action = puppet.move(dx, dy);
-        return true;
-      }
-    }
-
-    if (!this.has_reached_section && (puppet.me.x == destination[0]) && (puppet.me.y == destination[1])) {
-      this.has_reached_section = true;
-      let options = [-1, 1];
-      this.new_direction = [0, 0];
-      if (this.initial_direction[0] == 0)  {
-        this.new_direction[0] = options[Math.floor(Math.random()*2)];
-        this.new_direction[1] = 0;
-      }else {
-        this.new_direction[1] = options[Math.floor(Math.random()*2)];
-        this.new_direction[0] = 0;
-      }
-      this.turning_point = [puppet.me.x, puppet.me.y];
-    }
-    let chaser = [puppet.me.x - 2*this.previous_direction[0], puppet.me.y - 2*this.previous_direction[1]];
-    if (this.has_reached_section && troop_map[chaser[1]][chaser[0]] && (troop_map[chaser[1]][chaser[0]] > 0)) {
-      var destination = [this.turning_point[0] + this.new_direction[0]*this.steps_away_from_section, this.turning_point[1] + this.new_direction[1]*this.steps_away_from_section];
-      if (
-        (destination[0] > terrain_map[0].length - 1) ||
-        (destination[0] < 0) ||
-        (destination[1] > terrain_map.length - 1) ||
-        (destination[1] < 0)
-      ) {
-        direction = unit_ring$1[Math.floor(Math.random() * unit_ring_length$1)];
-        let dx = path[1][0] - puppet.me.x;
-        let dy = path[1][1] - puppet.me.y;
-        this.action = puppet.move(dx, dy);
-        return true;
-      }
-      while ((troop_map[destination[1]][destination[0]] > 0) || !terrain_map[destination[1]][destination[0]] || fuel_map[destination[1]][destination[0]] || karbonite_map[destination[1]][destination[0]]) {
-        this.steps_away_from_parent += 2;
-        destination = [this.turning_point[0] + this.new_direction[0]*this.steps_away_from_section, this.turning_point[1] + this.new_direction[1]*this.steps_away_from_section];
-        if (
-          (destination[0] > terrain_map[0].length - 1) ||
-          (destination[0] < 0) ||
-          (destination[1] > terrain_map.length - 1) ||
-          (destination[1] < 0)
-        ) {
-          direction = unit_ring$1[Math.floor(Math.random() * unit_ring_length$1)];
-          let dx = path[1][0] - puppet.me.x;
-          let dy = path[1][1] - puppet.me.y;
-          this.action = puppet.move(dx, dy);
-          return true;
+    let choices = [-1, 1];
+    if (this.destination[0]%2 != 0) this.destination[0] += choices[Math.floor(Math.random()*2)];
+    if (this.destination[1]%2 != 0) this.destination[1] += choices[Math.floor(Math.random()*2)];
+    while (
+      ((Math.abs(this.destination[0] - this.parent.x) + Math.abs(this.destination[1] - this.parent.y)) <= 2) ||
+      (this.destination[0] > map_troop[0].length - 1) ||
+      (this.destination[0] < 0) ||
+      (this.destination[1] > map_troop.length - 1) ||
+      (this.destination[1] < 0) ||
+      (map_troop[this.destination[1]][this.destination[0]] > 0) ||
+      (!map_terrain[this.destination[1]][this.destination[0]]) ||
+      (map_karb[this.destination[1]][this.destination[0]]) ||
+      (map_fuel[this.destination[1]][this.destination[0]])) {
+        let divisor = Math.random()*8;
+        if (Math.floor(Math.random()*2)) {
+          this.destination[1] += 2*Math.sign((map_troop.length/divisor) - puppet.me.y);
+        }else {
+          this.destination[0] += 2*Math.sign((map_troop[0].length/divisor) - puppet.me.x);
         }
-      }
     }
 
-
-    // if ((puppet.me.x == destination[0]) && (puppet.me.y == destination[1]) && (troop_map[follow_upper[1]][follow_upper[0]] > 0)) {
-    //
-    // }
-    if ((puppet.me.x != destination[0]) && (puppet.me.y != destination[1])) {
-      let path = find_path([puppet.me.x, puppet.me.y], destination, puppet.map, troop_map, puppet.me.unit);
-      puppet.log(path);
+    if ((this.destination[0] != puppet.me.x) || (this.destination[1] != puppet.me.y)) {
+      let path = find_path([puppet.me.x, puppet.me.y], this.destination, puppet.map, map_troop, puppet.me.unit);
       let dx = path[1][0] - puppet.me.x;
       let dy = path[1][1] - puppet.me.y;
-      this.previous_direction = [dx, dy];
       this.action = puppet.move(dx, dy);
       return true;// says to perform this.action once this function is complete
-    }else {
-      return false;
     }
+    return false;
   }
 
   observe_with(puppet) {
+    this.nearest_enemy = false;
     function handle_enemy(robot, inst) {
       if (inst.nearest_enemy == false) inst.nearest_enemy = robot;
       else {
@@ -964,9 +899,7 @@ class CrusaderSource extends CommonSource {
     if (nearest_church && (CommonSource.r_sq_between(puppet.me, nearest_church) < CommonSource.r_sq_between(puppet.me, this.parent))) this.parent = nearest_church;
     puppet.castleTalk(CommonSource.small_packet_for(false, this.parent.y));
 
-    this.initial_direction = [this.parent.x - puppet.me.x, this.parent.y - puppet.me.y];
-    this.previous_direction = this.initial_direction;
-    if (Math.abs(this.initial_direction[0] + this.initial_direction[1]) != 1) this.initial_direction[Math.floor(Math.random()*2)] = 0;
+    this.destination = [puppet.me.x, puppet.me.y];
   }
 }
 
@@ -1166,6 +1099,7 @@ class PreacherSource extends CommonSource {
     this.nearest_enemy = false;
 
     this.action = null;
+    this.destination = null;
   }
 
   /*
@@ -1183,13 +1117,14 @@ class PreacherSource extends CommonSource {
     if (puppet.me.turn == 1) this.initialize_with(puppet);
 
     if (this.attacking(puppet)) return this.action;
+    else if (this.travelling_to_even_tile(puppet)) return this.action;
   }
 
   attacking(puppet) {
     if (this.nearest_enemy != false) {
       // preacher's vision radius = attack radius, no need to check if in range
-      let dx = inst.nearest_enemy.x - puppet.me.x;
-      let dy = inst.nearest_enemy.y - puppet.me.y;
+      let dx = this.nearest_enemy.x - puppet.me.x;
+      let dy = this.nearest_enemy.y - puppet.me.y;
       puppet.log('Attacking enemy at ' + dx + ', ' + dy);
       this.action = puppet.attack(dx, dy);
       return true;
@@ -1197,7 +1132,46 @@ class PreacherSource extends CommonSource {
     return false;
   }
 
+  travelling_to_even_tile(puppet) {
+    let map_troop = puppet.getVisibleRobotMap();
+    map_troop[puppet.me.y][puppet.me.x] = 0;
+    let map_terrain = puppet.map;
+    let map_karb = puppet.karbonite_map;
+    let map_fuel = puppet.fuel_map;
+
+    let choices = [-1, 1];
+    if (this.destination[0]%2 != 0) this.destination[0] += choices[Math.floor(Math.random()*2)];
+    if (this.destination[1]%2 != 0) this.destination[1] += choices[Math.floor(Math.random()*2)];
+    while (
+      ((Math.abs(this.destination[0] - this.parent.x) + Math.abs(this.destination[1] - this.parent.y)) <= 2) ||
+      (this.destination[0] > map_troop[0].length - 1) ||
+      (this.destination[0] < 0) ||
+      (this.destination[1] > map_troop.length - 1) ||
+      (this.destination[1] < 0) ||
+      (map_troop[this.destination[1]][this.destination[0]] > 0) ||
+      (!map_terrain[this.destination[1]][this.destination[0]]) ||
+      (map_karb[this.destination[1]][this.destination[0]]) ||
+      (map_fuel[this.destination[1]][this.destination[0]])) {
+        let divisor = Math.random()*8;
+        if (Math.floor(Math.random()*2)) {
+          this.destination[1] += 2*Math.sign((map_troop.length/divisor) - puppet.me.y);
+        }else {
+          this.destination[0] += 2*Math.sign((map_troop[0].length/divisor) - puppet.me.x);
+        }
+    }
+
+    if ((this.destination[0] != puppet.me.x) || (this.destination[1] != puppet.me.y)) {
+      let path = find_path([puppet.me.x, puppet.me.y], this.destination, puppet.map, map_troop, puppet.me.unit);
+      let dx = path[1][0] - puppet.me.x;
+      let dy = path[1][1] - puppet.me.y;
+      this.action = puppet.move(dx, dy);
+      return true;// says to perform this.action once this function is complete
+    }
+    return false;
+  }
+
   observe_with(puppet) {
+    this.nearest_enemy = false;
     function handle_enemy(robot, inst) {
       if (inst.nearest_enemy == false) inst.nearest_enemy = robot;
       else {
@@ -1228,6 +1202,8 @@ class PreacherSource extends CommonSource {
     let nearest_church = this.nearest_friendly[SPECS.CHURCH];
     if (nearest_church && (CommonSource.r_sq_between(puppet.me, nearest_church) < CommonSource.r_sq_between(puppet.me, this.parent))) this.parent = nearest_church;
     puppet.castleTalk(CommonSource.small_packet_for(false, this.parent.y));
+
+    this.destination = [puppet.me.x, puppet.me.y];
   }
 }
 
@@ -1239,6 +1215,7 @@ class ProphetSource extends CommonSource {
     this.nearest_enemy = false;
 
     this.action = null;
+    this.destination = null;
   }
 
   /*
@@ -1256,13 +1233,14 @@ class ProphetSource extends CommonSource {
     if (puppet.me.turn == 1) this.initialize_with(puppet);
 
     if (this.attacking(puppet)) return this.action;
+    else if (this.travelling_to_even_tile(puppet)) return this.action;
   }
 
   attacking(puppet) {
     if (this.nearest_enemy != false) {
       // prophet's observe_with function has already ensured that nearest_enemy is in range
-      let dx = inst.nearest_enemy.x - puppet.me.x;
-      let dy = inst.nearest_enemy.y - puppet.me.y;
+      let dx = this.nearest_enemy.x - puppet.me.x;
+      let dy = this.nearest_enemy.y - puppet.me.y;
       puppet.log('Attacking enemy at ' + dx + ', ' + dy);
       this.action = puppet.attack(dx, dy);
       return true;
@@ -1270,10 +1248,49 @@ class ProphetSource extends CommonSource {
     return false;
   }
 
+  travelling_to_even_tile(puppet) {
+    let map_troop = puppet.getVisibleRobotMap();
+    map_troop[puppet.me.y][puppet.me.x] = 0;
+    let map_terrain = puppet.map;
+    let map_karb = puppet.karbonite_map;
+    let map_fuel = puppet.fuel_map;
+
+    let choices = [-1, 1];
+    if (this.destination[0]%2 != 0) this.destination[0] += choices[Math.floor(Math.random()*2)];
+    if (this.destination[1]%2 != 0) this.destination[1] += choices[Math.floor(Math.random()*2)];
+    while (
+      ((Math.abs(this.destination[0] - this.parent.x) + Math.abs(this.destination[1] - this.parent.y)) <= 2) ||
+      (this.destination[0] > map_troop[0].length - 1) ||
+      (this.destination[0] < 0) ||
+      (this.destination[1] > map_troop.length - 1) ||
+      (this.destination[1] < 0) ||
+      (map_troop[this.destination[1]][this.destination[0]] > 0) ||
+      (!map_terrain[this.destination[1]][this.destination[0]]) ||
+      (map_karb[this.destination[1]][this.destination[0]]) ||
+      (map_fuel[this.destination[1]][this.destination[0]])) {
+        let divisor = Math.random()*8;
+        if (Math.floor(Math.random()*2)) {
+          this.destination[1] += 2*Math.sign((map_troop.length/divisor) - puppet.me.y);
+        }else {
+          this.destination[0] += 2*Math.sign((map_troop[0].length/divisor) - puppet.me.x);
+        }
+    }
+
+    if ((this.destination[0] != puppet.me.x) || (this.destination[1] != puppet.me.y)) {
+      let path = find_path([puppet.me.x, puppet.me.y], this.destination, puppet.map, map_troop, puppet.me.unit);
+      let dx = path[1][0] - puppet.me.x;
+      let dy = path[1][1] - puppet.me.y;
+      this.action = puppet.move(dx, dy);
+      return true;// says to perform this.action once this function is complete
+    }
+    return false;
+  }
+
   observe_with(puppet) {
+    this.nearest_enemy = false;
     function handle_enemy(robot, inst) {
       let distance_new = CommonSource.r_sq_between(puppet.me, robot);
-      if (inst.can_attack(puppet.me.unit, distance_new, puppet)) {
+      if (CommonSource.can_attack(puppet.me.unit, distance_new, puppet)) {
         if (inst.nearest_enemy == false) inst.nearest_enemy = robot;
         else {
           let distance_old = CommonSource.r_sq_between(puppet.me, inst.nearest_enemy);
@@ -1303,6 +1320,8 @@ class ProphetSource extends CommonSource {
     let nearest_church = this.nearest_friendly[SPECS.CHURCH];
     if (nearest_church && (CommonSource.r_sq_between(puppet.me, nearest_church) < CommonSource.r_sq_between(puppet.me, this.parent))) this.parent = nearest_church;
     puppet.castleTalk(CommonSource.small_packet_for(false, this.parent.y));
+
+    this.destination = [puppet.me.x, puppet.me.y];
   }
 }
 
