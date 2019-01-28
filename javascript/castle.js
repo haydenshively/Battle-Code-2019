@@ -27,6 +27,10 @@ export class CastleSource extends CommonSource {
     // Variables to set once (after more information becomes available)
     this.other_units = {};
     this.their_castles = {};
+
+    this.build_order = [SPECS.PILGRIM, SPECS.CRUSADER, SPECS.CRUSADER, SPECS.PILGRIM, SPECS.PILGRIM,
+                        SPECS.CRUSADER, SPECS.PILGRIM, SPECS.CRUSADER, SPECS.PILGRIM, SPECS.CRUSADER,
+                        SPECS.CRUSADER, SPECS.CRUSADER, SPECS.CRUSADER];
   }
 
   /*
@@ -40,6 +44,7 @@ export class CastleSource extends CommonSource {
   return puppet.castleTalk(value);
   */
   get_action_for(puppet) {
+    this.find_buildable_tiles_around(puppet.me.x, puppet.me.y, puppet.map, puppet.getVisibleRobotMap());
     let direction;
 
     switch (puppet.me.turn) {
@@ -71,13 +76,20 @@ export class CastleSource extends CommonSource {
 
       default:
         direction = this.buildable_tiles[Math.floor(Math.random() * this.buildable_tiles.length)];
-        if ((puppet.fuel >= 350) && (puppet.karbonite >= 80)) {return puppet.buildUnit(SPECS.PILGRIM, direction[0], direction[1]);}
+        if ((puppet.fuel >= 350) && (puppet.karbonite >= 80)) {
+          if (this.build_order.length > 0) {
+            let build_type = this.build_order.shift();
+            return puppet.buildUnit(build_type, direction[0], direction[1]);
+          }else {
+            let choices = [SPECS.PILGRIM, SPECS.CRUSADER, SPECS.PROPHET, SPECS.PREACHER];
+            return puppet.buildUnit(choices[Math.floor(Math.random()*choices.length)], direction[0], direction[1]);
+          }
+        }
     }
   }
 
   init_first_turn(puppet) {
     super.initialize_with(puppet);
-    this.find_buildable_tiles_around(puppet.me.x, puppet.me.y, puppet.map);
     // start at 0, will basically become castle # (1, 2, or 3)
     this.place_in_turn_queue = 1;
 
@@ -186,12 +198,13 @@ export class CastleSource extends CommonSource {
     }
   }
 
-  find_buildable_tiles_around(x, y, map) {
+  find_buildable_tiles_around(x, y, map, troop_map) {
+    this.buildable_tiles = [];
     for (var i = unit_ring_length - 1; i >= 0; i--) {
       let direction = unit_ring[i];
       let col = x + direction[0];
       let row = y + direction[1];
-      if (map[row][col]) {this.buildable_tiles.push(direction);}
+      if (map[row][col] && (troop_map[row][col] == 0)) {this.buildable_tiles.push(direction);}
     }
   }
 
